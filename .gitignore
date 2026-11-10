@@ -1,0 +1,19 @@
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.env.*
+!.env.example
+*.db
+*.sqlite
+*.sqlite3
+.pytest_cache/
+.coverage
+htmlcov/
+.streamlit/secrets.toml
+
+# Keep the data directory in Git, but do not commit generated data files.
+/data/*
+!/data/.gitkeep
