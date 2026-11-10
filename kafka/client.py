@@ -9,6 +9,7 @@ from confluent_kafka.admin import AdminClient, NewTopic
 from kafka.settings import KafkaSettings
 
 EventProcessor = Callable[[dict[str, object]], bool | None]
+InvalidMessageHandler = Callable[[bytes | None, str], None]
 
 
 class RetryableProcessingError(Exception):
@@ -188,6 +189,7 @@ def consume_events(
     processor: EventProcessor,
     max_messages: int | None = None,
     group_id: str | None = None,
+    on_invalid_message: InvalidMessageHandler | None = None,
 ) -> tuple[int, int]:
     if max_messages is not None and max_messages < 1:
         raise ValueError("max_messages must be at least 1 when provided")
@@ -214,6 +216,8 @@ def consume_events(
             try:
                 event = parse_event_payload(message.value())
             except (UnicodeDecodeError, ValueError) as parse_error:
+                if on_invalid_message is not None:
+                    on_invalid_message(message.value(), str(parse_error))
                 send_to_dead_letter(dead_letter_producer, message, parse_error, settings)
                 dead_lettered += 1
             else:

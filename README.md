@@ -4,7 +4,7 @@ A resource-conscious research project for streaming simulated gaming events, pro
 
 ## Project status
 
-Phases 1–5: the environment, project structure, event generator, Kafka producer/consumer code, and event validation/deduplication are in place. The live Kafka end-to-end check still requires a local broker. SQLite persistence, the API, and the dashboard have not yet been implemented.
+Phases 1–6: the environment, project structure, event generator, Kafka producer/consumer code, event validation/deduplication, and SQLite persistence are in place. The live Kafka end-to-end check still requires a local broker. The API and dashboard have not yet been implemented.
 
 The GitHub Pages site is a static project overview. It does not host the Python application, Kafka broker, or live analytics dashboard.
 
@@ -52,7 +52,17 @@ py -3.13 -m unittest discover -s tests -v
 
 ### Validate and deduplicate events
 
-`preprocessing.EventPreprocessor` validates the event type, identifiers, timestamp, and event-specific fields; normalizes timestamps to UTC; and counts valid, invalid, and duplicate events. The Kafka consumer runs this step before accepting a message; invalid records go to the dead-letter topic and duplicate IDs are not printed as accepted events. Duplicate IDs are tracked in memory for now, so the set lasts only for the process lifetime. Phase 6 will add durable storage and deduplication in SQLite.
+`preprocessing.EventPreprocessor` validates the event type, identifiers, timestamp, and event-specific fields; normalizes timestamps to UTC; and counts valid, invalid, and duplicate events. The Kafka consumer runs this step before accepting a message; invalid records go to the dead-letter topic and duplicate IDs are not printed as accepted events. SQLite adds persistent event-ID deduplication and data-quality records across restarts.
+
+### Initialize and inspect the SQLite database
+
+The consumer initializes `data\gaming_analytics.sqlite3` automatically. To initialize it or inspect current row counts without starting Kafka:
+
+```powershell
+py -3.13 -c "from database import Database; db = Database(); print(db.table_counts()); print(db.quality_counts())"
+```
+
+SQLite stores players, sessions, scores, transactions, processed events, and valid/invalid/duplicate quality records. Generated database files are ignored by Git.
 
 ### Produce and consume Kafka events
 
