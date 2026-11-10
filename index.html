@@ -113,6 +113,10 @@
     .step strong { display: block; margin-bottom: 4px; }
     .step span { color: var(--muted); font-size: .9rem; }
 
+    .commands { overflow-x: auto; padding: 16px; border: 1px solid var(--border); border-radius: 8px; background: #080e19; color: var(--text); white-space: pre-wrap; overflow-wrap: anywhere; }
+    .setup-step { margin: 18px 0; }
+    .setup-step h3 { margin-bottom: 8px; font-size: 1.05rem; }
+
     footer { padding: 24px 0 38px; border-top: 1px solid var(--border); color: var(--muted); font-size: .9rem; }
 
     @media (max-width: 560px) {
@@ -143,7 +147,7 @@
           dashboard. Performance claims will be reported only after measured experiments.
         </p>
         <div class="actions">
-          <a class="button primary" href="http://localhost:8501" target="_blank" rel="noopener noreferrer">Open live dashboard</a>
+          <a class="button primary" href="#dashboard-setup">How to start the dashboard</a>
           <a class="button primary" href="https://github.com/THARUN-RK/BDTRESERCH">View source on GitHub</a>
           <a class="button" href="https://github.com/THARUN-RK/BDTRESERCH#readme">Setup and commands</a>
         </div>
@@ -152,13 +156,87 @@
       <aside class="notice" aria-label="Dashboard availability">
         <strong>The live analytics dashboard runs locally, not on this website.</strong>
         <p>
-          Select “Open live dashboard” after starting the local Kafka broker,
-          FastAPI, and Streamlit services. This link opens localhost on the device
-          viewing the page, so it works only when those services are running on that
-          same device. GitHub Pages cannot run the Python app, Kafka broker, or
-          SQLite database; no sample metrics are displayed as if they were real.
+          Use the startup guide below to run Kafka, the API, consumer, and dashboard
+          on your laptop. GitHub Pages cannot start those services or display their
+          live data by itself.
         </p>
       </aside>
+
+      <section class="section" id="dashboard-setup">
+        <h2>Start the live dashboard on Windows</h2>
+        <p>
+          These steps run the real local pipeline. Keep each service open in its own
+          PowerShell window. The dashboard link uses your own laptop, so it works
+          only from that laptop while the services are running.
+        </p>
+        <p>
+          Before starting the full pipeline, make sure at least 2 GB of RAM is free.
+          This project has not been tested with the Kafka broker, API, consumer, and
+          dashboard running together on a laptop with less free memory.
+        </p>
+
+        <div class="setup-step">
+          <h3>1. Open PowerShell in the project folder and install Python dependencies</h3>
+          <p>Use the folder containing this project's README.md.</p>
+          <pre class="commands"><code>py -3.13 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt</code></pre>
+        </div>
+
+        <div class="setup-step">
+          <h3>2. Download Kafka and prepare its KRaft storage (first time only)</h3>
+          <p>
+            This uses Kafka 4.4.0, Java 17 or newer, and a user-writable tools
+            directory. Run this once from the project folder. Do not format storage
+            again after it has been initialized.
+          </p>
+          <pre class="commands"><code>$version = '4.4.0'
+          $project = (Get-Location).Path
+          $tools = Join-Path $HOME 'tools'
+          $kafkaHome = Join-Path $tools "kafka_2.13-$version"
+          $archive = Join-Path $env:TEMP "kafka_2.13-$version.tgz"
+          New-Item -ItemType Directory -Force $tools | Out-Null
+          Invoke-WebRequest "https://downloads.apache.org/kafka/$version/kafka_2.13-$version.tgz" -OutFile $archive
+          tar -xzf $archive -C $tools
+          Copy-Item (Join-Path $project 'kafka\server.properties') (Join-Path $kafkaHome 'config\server.properties') -Force
+          $env:KAFKA_HEAP_OPTS = '-Xms256m -Xmx512m'
+          $storage = Join-Path $kafkaHome 'bin\windows\kafka-storage.bat'
+          $config = Join-Path $kafkaHome 'config\server.properties'
+          Set-Location $kafkaHome
+          $clusterId = &amp; $storage random-uuid
+          &amp; $storage format -t $clusterId -c $config</code></pre>
+        </div>
+
+        <div class="setup-step">
+          <h3>3. Start the Kafka broker (PowerShell window 1)</h3>
+          <pre class="commands"><code>$kafkaHome = Join-Path $HOME 'tools\kafka_2.13-4.4.0'
+$env:KAFKA_HEAP_OPTS = '-Xms256m -Xmx512m'
+Set-Location $kafkaHome
+.\bin\windows\kafka-server-start.bat .\config\server.properties</code></pre>
+        </div>
+
+        <div class="setup-step">
+          <h3>4. Start the consumer (PowerShell window 2)</h3>
+          <p>Open this window in the project folder.</p>
+          <pre class="commands"><code>.\.venv\Scripts\python.exe -m kafka.consumer</code></pre>
+        </div>
+
+        <div class="setup-step">
+          <h3>5. Start the API (PowerShell window 3)</h3>
+          <pre class="commands"><code>.\.venv\Scripts\python.exe -m uvicorn backend.app:app --host 127.0.0.1 --port 8000</code></pre>
+        </div>
+
+        <div class="setup-step">
+          <h3>6. Start the dashboard (PowerShell window 4)</h3>
+          <pre class="commands"><code>.\.venv\Scripts\python.exe -m streamlit run dashboard/app.py</code></pre>
+          <p>Open <a href="http://localhost:8501">http://localhost:8501</a> on the same laptop.</p>
+        </div>
+
+        <div class="setup-step">
+          <h3>7. Generate a continuous stream of Kafka events (PowerShell window 5)</h3>
+          <pre class="commands"><code>.\.venv\Scripts\python.exe -m kafka.producer --count 0 --rate 5 --players 50 --seed 42</code></pre>
+          <p>Stop each process with Ctrl+C. The dashboard refreshes every five seconds from the API and SQLite data written by the consumer.</p>
+        </div>
+      </section>
 
       <section class="section" id="status">
         <h2>Implementation status</h2>
