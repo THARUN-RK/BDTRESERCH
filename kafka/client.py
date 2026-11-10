@@ -8,11 +8,15 @@ from confluent_kafka.admin import AdminClient, NewTopic
 
 from kafka.settings import KafkaSettings
 
-EventProcessor = Callable[[dict[str, object]], None]
+EventProcessor = Callable[[dict[str, object]], bool | None]
 
 
 class RetryableProcessingError(Exception):
     """Signal a transient event-processing failure that should be retried."""
+
+
+class RejectedEventError(Exception):
+    """Signal a permanent invalid-event failure that should go directly to the DLQ."""
 
 
 class DeliveryTracker:
@@ -134,11 +138,10 @@ def process_with_retries(
     event: dict[str, object],
     processor: EventProcessor,
     settings: KafkaSettings,
-) -> None:
+) -> bool | None:
     for attempt in range(settings.processing_attempts):
         try:
-            processor(event)
-            return
+            return processor(event)
         except RetryableProcessingError:
             if attempt + 1 == settings.processing_attempts:
                 raise
@@ -215,14 +218,20 @@ def consume_events(
                 dead_lettered += 1
             else:
                 try:
-                    process_with_retries(event, processor, settings)
+                    accepted = process_with_retries(event, processor, settings)
                 except RetryableProcessingError as processing_error:
                     send_to_dead_letter(
                         dead_letter_producer, message, processing_error, settings
                     )
                     dead_lettered += 1
+                except RejectedEventError as processing_error:
+                    send_to_dead_letter(
+                        dead_letter_producer, message, processing_error, settings
+                    )
+                    dead_lettered += 1
                 else:
-                    processed += 1
+                    if accepted is not False:
+                        processed += 1
 
             consumer.commit(message=message, asynchronous=False)
     finally:

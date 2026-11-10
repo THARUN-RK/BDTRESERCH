@@ -4,7 +4,7 @@ A resource-conscious research project for streaming simulated gaming events, pro
 
 ## Project status
 
-Phases 1–4: the environment, project structure, event generator, and Kafka producer/consumer code are in place. The live Kafka end-to-end check still requires a local broker. Preprocessing, SQLite persistence, the API, and the dashboard have not yet been implemented.
+Phases 1–5: the environment, project structure, event generator, Kafka producer/consumer code, and event validation/deduplication are in place. The live Kafka end-to-end check still requires a local broker. SQLite persistence, the API, and the dashboard have not yet been implemented.
 
 The GitHub Pages site is a static project overview. It does not host the Python application, Kafka broker, or live analytics dashboard.
 
@@ -49,6 +49,10 @@ The command reports the generated event count on standard error. Each line in th
 ```powershell
 py -3.13 -m unittest discover -s tests -v
 ```
+
+### Validate and deduplicate events
+
+`preprocessing.EventPreprocessor` validates the event type, identifiers, timestamp, and event-specific fields; normalizes timestamps to UTC; and counts valid, invalid, and duplicate events. The Kafka consumer runs this step before accepting a message; invalid records go to the dead-letter topic and duplicate IDs are not printed as accepted events. Duplicate IDs are tracked in memory for now, so the set lasts only for the process lifetime. Phase 6 will add durable storage and deduplication in SQLite.
 
 ### Produce and consume Kafka events
 

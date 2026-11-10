@@ -2,8 +2,9 @@ import argparse
 import json
 from collections.abc import Sequence
 
-from kafka.client import consume_events
+from kafka.client import RejectedEventError, consume_events
 from kafka.settings import KafkaSettings
+from preprocessing import EventPreprocessor, EventStatus
 
 
 def _display_event(event: dict[str, object]) -> None:
@@ -36,12 +37,31 @@ def main(argv: Sequence[str] | None = None) -> int:
         events_topic=args.topic,
         consumer_group=args.group_id,
     )
+    preprocessor = EventPreprocessor()
+
+    def preprocess_and_display(event: dict[str, object]) -> bool:
+        result = preprocessor.process(event)
+        if result.status is EventStatus.INVALID:
+            if result.reason is None:
+                raise RuntimeError("Invalid event result is missing its validation reason")
+            raise RejectedEventError(result.reason)
+        if result.status is EventStatus.DUPLICATE:
+            return False
+        if result.event is None:
+            raise RuntimeError("Valid event result is missing its normalized event")
+        _display_event(result.event)
+        return True
+
     processed, dead_lettered = consume_events(
         settings,
-        processor=_display_event,
+        processor=preprocess_and_display,
         max_messages=args.max_messages or None,
     )
-    print(f"Processed {processed} event(s); sent {dead_lettered} to the DLQ.")
+    print(
+        f"Accepted {processed} event(s), counted {preprocessor.stats.duplicate} "
+        f"duplicate(s), rejected {preprocessor.stats.invalid} invalid event(s), "
+        f"and sent {dead_lettered} message(s) to the DLQ."
+    )
     return 0
 
 

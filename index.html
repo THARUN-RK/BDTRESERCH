@@ -172,9 +172,14 @@
             <p>Includes topic setup, consumer groups, retries, bounded client queues, and a dead-letter topic.</p>
           </article>
           <article class="card">
+            <span class="state">Implemented</span>
+            <h3>Event preprocessing</h3>
+            <p>Validates and normalizes events, rejects invalid records, and counts duplicate IDs in memory.</p>
+          </article>
+          <article class="card">
             <span class="state">Next phases</span>
-            <h3>Processing and analytics</h3>
-            <p>Validation, SQLite persistence, API, Streamlit dashboard, and experiments remain to be built.</p>
+            <h3>Storage and analytics</h3>
+            <p>SQLite persistence, API, Streamlit dashboard, and experiments remain to be built.</p>
           </article>
         </div>
       </section>
@@ -186,7 +191,8 @@
           <div class="step"><strong>02 · Structure</strong><span>Project skeleton</span></div>
           <div class="step"><strong>03 · Generator</strong><span>Implemented and tested</span></div>
           <div class="step"><strong>04 · Kafka</strong><span>Code ready; live broker test pending</span></div>
-          <div class="step"><strong>05–08 · Application</strong><span>Preprocessing, storage, API, dashboard</span></div>
+          <div class="step"><strong>05 · Preprocessing</strong><span>Implemented; duplicate tracking is in-memory</span></div>
+          <div class="step"><strong>06–08 · Application</strong><span>SQLite, API, Streamlit dashboard</span></div>
           <div class="step"><strong>09–10 · Research</strong><span>Measured experiments and report</span></div>
         </div>
       </section>

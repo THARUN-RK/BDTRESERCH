@@ -3,6 +3,7 @@ from unittest.mock import Mock, patch
 
 from kafka.client import (
     DeliveryTracker,
+    RejectedEventError,
     RetryableProcessingError,
     parse_event_payload,
     process_with_retries,
@@ -45,6 +46,15 @@ class KafkaIntegrationTests(unittest.TestCase):
         process_with_retries({"event_id": "abc"}, processor, settings)
 
         self.assertEqual(processor.call_count, 2)
+
+    def test_permanent_rejection_is_not_retried(self) -> None:
+        settings = KafkaSettings(processing_attempts=3, retry_backoff_seconds=0)
+        processor = Mock(side_effect=RejectedEventError("invalid score"))
+
+        with self.assertRaises(RejectedEventError):
+            process_with_retries({"event_id": "abc"}, processor, settings)
+
+        self.assertEqual(processor.call_count, 1)
 
     def test_exhausted_processing_retries_raise(self) -> None:
         settings = KafkaSettings(processing_attempts=3, retry_backoff_seconds=0)
