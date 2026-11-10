@@ -4,7 +4,7 @@ A resource-conscious research project for streaming simulated gaming events, pro
 
 ## Project status
 
-Phases 1–7: the environment, project structure, event generator, Kafka producer/consumer code, event validation/deduplication, SQLite persistence, and read-only FastAPI analytics API are in place. The live Kafka end-to-end check still requires a local broker. The Streamlit dashboard has not yet been implemented.
+Phases 1–8: the environment, project structure, event generator, Kafka producer/consumer code, event validation/deduplication, SQLite persistence, FastAPI analytics API, and local Streamlit dashboard are in place. The live Kafka end-to-end check still requires a local broker.
 
 The GitHub Pages site is a static project overview. It does not host the Python application, Kafka broker, or live analytics dashboard.
 
@@ -82,6 +82,16 @@ Invoke-RestMethod http://127.0.0.1:8000/api/kafka/status
 ```
 
 The API also exposes `/api/metrics/activity`, `/api/metrics/daily`, `/api/leaderboard`, and `/api/sessions`. Kafka reachability is a TCP check only. Consumer lag and Kafka processing latency return as unavailable until they are actually instrumented; event rate is calculated from stored event timestamps and is not reported as broker throughput.
+
+### Start the Streamlit dashboard
+
+Keep the FastAPI window running and open another PowerShell window in the project directory:
+
+```powershell
+py -3.13 -m streamlit run dashboard/app.py
+```
+
+Open `http://localhost:8501`. The dashboard reads real SQLite-backed API responses and refreshes every five seconds. With an empty database, it shows empty-state messages and zero stored counts; it does not fill the charts with sample metrics. GitHub Pages remains a static project site and cannot host the live Python/Kafka/SQLite application.
 
 ### Produce and consume Kafka events
 

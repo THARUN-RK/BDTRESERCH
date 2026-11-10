@@ -149,11 +149,11 @@
       </section>
 
       <aside class="notice" aria-label="Dashboard availability">
-        <strong>The live analytics dashboard is not available on this website yet.</strong>
+        <strong>The live analytics dashboard runs locally, not on this website.</strong>
         <p>
           This is a static GitHub Pages project site. It cannot run the Python app,
-          Kafka broker, or SQLite database. The dashboard will first be built and
-          verified locally; no sample metrics are displayed as if they were real.
+          Kafka broker, or SQLite database. Start FastAPI and Streamlit locally to
+          use the dashboard; no sample metrics are displayed as if they were real.
         </p>
       </aside>
 
@@ -187,9 +187,9 @@
             <p>Provides SQLite-backed metrics, activity, daily statistics, leaderboard, sessions, and quality endpoints.</p>
           </article>
           <article class="card">
-            <span class="state">Next phases</span>
-            <h3>Dashboard and research</h3>
-            <p>The Streamlit dashboard and measured performance experiments remain to be built.</p>
+            <span class="state">Implemented · local</span>
+            <h3>Streamlit dashboard</h3>
+            <p>Auto-refreshes from the FastAPI service; performance experiments remain to be run.</p>
           </article>
         </div>
       </section>
@@ -204,7 +204,7 @@
           <div class="step"><strong>05 · Preprocessing</strong><span>Implemented; duplicate tracking is in-memory</span></div>
           <div class="step"><strong>06 · SQLite</strong><span>Implemented; duplicate checks are persistent</span></div>
           <div class="step"><strong>07 · FastAPI</strong><span>Implemented; docs at local /docs</span></div>
-          <div class="step"><strong>08 · Dashboard</strong><span>Streamlit dashboard still pending</span></div>
+          <div class="step"><strong>08 · Dashboard</strong><span>Implemented for local use</span></div>
           <div class="step"><strong>09–10 · Research</strong><span>Measured experiments and report</span></div>
         </div>
       </section>
