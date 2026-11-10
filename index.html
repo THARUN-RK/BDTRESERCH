@@ -143,6 +143,7 @@
           dashboard. Performance claims will be reported only after measured experiments.
         </p>
         <div class="actions">
+          <a class="button primary" href="http://localhost:8501" target="_blank" rel="noopener noreferrer">Open live dashboard</a>
           <a class="button primary" href="https://github.com/THARUN-RK/BDTRESERCH">View source on GitHub</a>
           <a class="button" href="https://github.com/THARUN-RK/BDTRESERCH#readme">Setup and commands</a>
         </div>
@@ -151,9 +152,11 @@
       <aside class="notice" aria-label="Dashboard availability">
         <strong>The live analytics dashboard runs locally, not on this website.</strong>
         <p>
-          This is a static GitHub Pages project site. It cannot run the Python app,
-          Kafka broker, or SQLite database. Start FastAPI and Streamlit locally to
-          use the dashboard; no sample metrics are displayed as if they were real.
+          Select “Open live dashboard” after starting the local Kafka broker,
+          FastAPI, and Streamlit services. This link opens localhost on the device
+          viewing the page, so it works only when those services are running on that
+          same device. GitHub Pages cannot run the Python app, Kafka broker, or
+          SQLite database; no sample metrics are displayed as if they were real.
         </p>
       </aside>
 
