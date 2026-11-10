@@ -4,7 +4,9 @@ A resource-conscious research project for streaming simulated gaming events, pro
 
 ## Project status
 
-Phase 4: the event generator and Kafka producer/consumer integration are implemented. The broker must be running locally to perform the Kafka end-to-end check.
+Phases 1–4: the environment, project structure, event generator, and Kafka producer/consumer code are in place. The live Kafka end-to-end check still requires a local broker. Preprocessing, SQLite persistence, the API, and the dashboard have not yet been implemented.
+
+The GitHub Pages site is a static project overview. It does not host the Python application, Kafka broker, or live analytics dashboard.
 
 ## Planned technology stack
 
