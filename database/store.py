@@ -6,6 +6,7 @@ import json
 import math
 import sqlite3
 from contextlib import contextmanager
+from datetime import date, datetime, time, timedelta, timezone
 from enum import StrEnum
 from pathlib import Path
 from typing import Iterator
@@ -236,6 +237,168 @@ class Database:
                 ).fetchone()[0]
                 for table in tables
             }
+
+    def overview(self) -> dict[str, int | float | None]:
+        """Return persisted player, session, score, and recent-event summaries."""
+        cutoff = (datetime.now(timezone.utc) - timedelta(seconds=60)).isoformat()
+        with self._connection() as connection:
+            player_counts = connection.execute(
+                """
+                SELECT COUNT(*) AS total_players,
+                       COALESCE(SUM(is_online), 0) AS active_players
+                FROM players
+                """
+            ).fetchone()
+            score_summary = connection.execute(
+                """
+                SELECT AVG(score) AS average_score, MAX(score) AS highest_score
+                FROM player_scores
+                """
+            ).fetchone()
+            total_sessions = connection.execute(
+                "SELECT COUNT(*) FROM gaming_sessions"
+            ).fetchone()[0]
+            recent_events = connection.execute(
+                "SELECT COUNT(*) FROM processed_events WHERE timestamp >= ?",
+                (cutoff,),
+            ).fetchone()[0]
+            total_events = connection.execute(
+                "SELECT COUNT(*) FROM processed_events"
+            ).fetchone()[0]
+
+        return {
+            "total_players": player_counts["total_players"],
+            "active_players": player_counts["active_players"],
+            "total_sessions": total_sessions,
+            "average_score": score_summary["average_score"],
+            "highest_score": score_summary["highest_score"],
+            "events_per_second": recent_events / 60.0,
+            "events_in_last_60_seconds": recent_events,
+            "total_processed_events": total_events,
+            "kafka_processing_latency_ms": None,
+        }
+
+    def activity(self, minutes: int = 60) -> list[dict[str, str | int]]:
+        """Return processed event counts by minute and event type."""
+        if not 1 <= minutes <= 1440:
+            raise ValueError("minutes must be between 1 and 1440")
+        cutoff = (datetime.now(timezone.utc) - timedelta(minutes=minutes)).isoformat()
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT substr(timestamp, 1, 16) AS minute,
+                       event_type,
+                       COUNT(*) AS event_count
+                FROM processed_events
+                WHERE timestamp >= ?
+                GROUP BY minute, event_type
+                ORDER BY minute, event_type
+                """,
+                (cutoff,),
+            ).fetchall()
+        return [
+            {
+                "minute": f"{row['minute']}:00+00:00",
+                "event_type": row["event_type"],
+                "event_count": row["event_count"],
+            }
+            for row in rows
+        ]
+
+    def daily_statistics(self, days: int = 7) -> list[dict[str, str | int | float | None]]:
+        """Return daily event/session counts and score averages, including empty days."""
+        if not 1 <= days <= 365:
+            raise ValueError("days must be between 1 and 365")
+
+        today = datetime.now(timezone.utc).date()
+        first_day = today - timedelta(days=days - 1)
+        cutoff = datetime.combine(first_day, time.min, timezone.utc).isoformat()
+        by_day: dict[str, dict[str, str | int | float | None]] = {
+            (first_day + timedelta(days=offset)).isoformat(): {
+                "day": (first_day + timedelta(days=offset)).isoformat(),
+                "events": 0,
+                "sessions_started": 0,
+                "average_score": None,
+            }
+            for offset in range(days)
+        }
+
+        with self._connection() as connection:
+            event_rows = connection.execute(
+                """
+                SELECT substr(timestamp, 1, 10) AS day, COUNT(*) AS event_count
+                FROM processed_events
+                WHERE timestamp >= ?
+                GROUP BY day
+                """,
+                (cutoff,),
+            ).fetchall()
+            session_rows = connection.execute(
+                """
+                SELECT substr(started_at, 1, 10) AS day, COUNT(*) AS session_count
+                FROM gaming_sessions
+                WHERE started_at IS NOT NULL AND started_at >= ?
+                GROUP BY day
+                """,
+                (cutoff,),
+            ).fetchall()
+            score_rows = connection.execute(
+                """
+                SELECT substr(timestamp, 1, 10) AS day, AVG(score) AS average_score
+                FROM player_scores
+                WHERE timestamp >= ?
+                GROUP BY day
+                """,
+                (cutoff,),
+            ).fetchall()
+
+        for row in event_rows:
+            if row["day"] in by_day:
+                by_day[row["day"]]["events"] = row["event_count"]
+        for row in session_rows:
+            if row["day"] in by_day:
+                by_day[row["day"]]["sessions_started"] = row["session_count"]
+        for row in score_rows:
+            if row["day"] in by_day:
+                by_day[row["day"]]["average_score"] = row["average_score"]
+        return list(by_day.values())
+
+    def leaderboard(self, limit: int = 10) -> list[dict[str, str | int]]:
+        """Return players ordered by aggregate score."""
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT player_id,
+                       SUM(score) AS total_score,
+                       COUNT(*) AS score_events,
+                       MAX(score) AS highest_score
+                FROM player_scores
+                GROUP BY player_id
+                ORDER BY total_score DESC, player_id ASC
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
+
+    def recent_sessions(self, limit: int = 20) -> list[dict[str, object]]:
+        """Return the latest session records for session analysis."""
+        if not 1 <= limit <= 100:
+            raise ValueError("limit must be between 1 and 100")
+        with self._connection() as connection:
+            rows = connection.execute(
+                """
+                SELECT session_id, player_id, game_id, started_at, ended_at,
+                       duration_seconds, status
+                FROM gaming_sessions
+                ORDER BY COALESCE(ended_at, started_at) DESC, session_id
+                LIMIT ?
+                """,
+                (limit,),
+            ).fetchall()
+        return [dict(row) for row in rows]
 
     @staticmethod
     def _required_string(event: dict[str, object], field: str) -> str:

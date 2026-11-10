@@ -4,7 +4,7 @@ A resource-conscious research project for streaming simulated gaming events, pro
 
 ## Project status
 
-Phases 1–6: the environment, project structure, event generator, Kafka producer/consumer code, event validation/deduplication, and SQLite persistence are in place. The live Kafka end-to-end check still requires a local broker. The API and dashboard have not yet been implemented.
+Phases 1–7: the environment, project structure, event generator, Kafka producer/consumer code, event validation/deduplication, SQLite persistence, and read-only FastAPI analytics API are in place. The live Kafka end-to-end check still requires a local broker. The Streamlit dashboard has not yet been implemented.
 
 The GitHub Pages site is a static project overview. It does not host the Python application, Kafka broker, or live analytics dashboard.
 
@@ -63,6 +63,25 @@ py -3.13 -c "from database import Database; db = Database(); print(db.table_coun
 ```
 
 SQLite stores players, sessions, scores, transactions, processed events, and valid/invalid/duplicate quality records. Generated database files are ignored by Git.
+
+### Start the FastAPI backend
+
+From the project directory:
+
+```powershell
+py -3.13 -m uvicorn backend.app:app --host 127.0.0.1 --port 8000
+```
+
+Open `http://127.0.0.1:8000/docs` for the interactive API documentation. In another PowerShell window, verify the service and its real SQLite-backed responses:
+
+```powershell
+Invoke-RestMethod http://127.0.0.1:8000/health
+Invoke-RestMethod http://127.0.0.1:8000/api/metrics/overview
+Invoke-RestMethod http://127.0.0.1:8000/api/data-quality
+Invoke-RestMethod http://127.0.0.1:8000/api/kafka/status
+```
+
+The API also exposes `/api/metrics/activity`, `/api/metrics/daily`, `/api/leaderboard`, and `/api/sessions`. Kafka reachability is a TCP check only. Consumer lag and Kafka processing latency return as unavailable until they are actually instrumented; event rate is calculated from stored event timestamps and is not reported as broker throughput.
 
 ### Produce and consume Kafka events
 
