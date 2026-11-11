@@ -1,8 +1,13 @@
+```python
+import os
+import psycopg2
+
+from psycopg2.extras import RealDictCursor
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-import sqlite3
 from datetime import datetime, timezone
+
 
 # ==========================================
 # GAMING ANALYTICS API
@@ -10,9 +15,10 @@ from datetime import datetime, timezone
 
 app = FastAPI(
     title="Gaming Analytics API",
-    description="Real-time gaming analytics using Apache Kafka, Python and SQLite",
-    version="3.0"
+    description="Real-time gaming analytics using Apache Kafka, Python and Neon PostgreSQL",
+    version="4.0"
 )
+
 
 # ==========================================
 # CORS CONFIGURATION
@@ -26,49 +32,89 @@ app.add_middleware(
     allow_headers=["*"]
 )
 
+
 # ==========================================
-# DATABASE CONFIGURATION
+# NEON POSTGRESQL CONFIGURATION
 # ==========================================
 
-DATABASE = "gaming_analytics.db"
+DATABASE_URL = os.getenv("DATABASE_URL")
 
 
 def get_connection():
-    conn = sqlite3.connect(DATABASE)
-    conn.row_factory = sqlite3.Row
-    return conn
 
+    if not DATABASE_URL:
+        raise RuntimeError(
+            "DATABASE_URL environment variable is missing"
+        )
+
+    return psycopg2.connect(
+        DATABASE_URL,
+        cursor_factory=RealDictCursor,
+        connect_timeout=10
+    )
+
+
+# ==========================================
+# DATABASE INITIALIZATION
+# ==========================================
 
 def initialize_database():
-    with get_connection() as conn:
-        conn.execute("""
-            CREATE TABLE IF NOT EXISTS gaming_events (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                player_id TEXT NOT NULL,
-                event_type TEXT NOT NULL,
-                score INTEGER DEFAULT 0,
-                event_timestamp TEXT,
-                kafka_partition INTEGER,
-                kafka_offset INTEGER,
-                received_at TEXT DEFAULT CURRENT_TIMESTAMP
-            )
-        """)
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS gaming_events (
+
+                    id BIGSERIAL PRIMARY KEY,
+
+                    player_id TEXT NOT NULL,
+
+                    event_type TEXT NOT NULL,
+
+                    score INTEGER DEFAULT 0,
+
+                    event_timestamp TIMESTAMPTZ,
+
+                    kafka_partition INTEGER,
+
+                    kafka_offset BIGINT,
+
+                    received_at TIMESTAMPTZ
+                        DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
         conn.commit()
 
+    finally:
+        conn.close()
 
-initialize_database()
+
+@app.on_event("startup")
+def startup_event():
+
+    initialize_database()
+
 
 # ==========================================
 # EVENT INPUT MODEL
 # ==========================================
 
-
 class GamingEvent(BaseModel):
+
     player_id: str
+
     event_type: str
+
     score: int = 0
-    event_timestamp: str | None = None
+
+    event_timestamp: datetime | None = None
+
     kafka_partition: int | None = None
+
     kafka_offset: int | None = None
 
 
@@ -78,14 +124,20 @@ class GamingEvent(BaseModel):
 
 @app.get("/")
 def home():
+
     return {
         "message": "Gaming Analytics API is running",
+
         "status": "online",
-        "version": "3.0",
+
+        "version": "4.0",
+
+        "database": "Neon PostgreSQL",
+
         "technology": [
             "Apache Kafka",
             "Python",
-            "SQLite",
+            "PostgreSQL",
             "FastAPI",
             "Streamlit"
         ]
@@ -98,11 +150,28 @@ def home():
 
 @app.get("/health")
 def health():
-    return {
-        "status": "healthy",
-        "service": "Gaming Analytics API",
-        "timestamp": datetime.now(timezone.utc).isoformat()
-    }
+
+    try:
+
+        conn = get_connection()
+
+        with conn.cursor() as cursor:
+            cursor.execute("SELECT 1")
+
+        conn.close()
+
+        return {
+            "status": "healthy",
+            "database": "connected",
+            "service": "Gaming Analytics API",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
+    except Exception:
+        raise HTTPException(
+            status_code=503,
+            detail="Database connection failed"
+        )
 
 
 # ==========================================
@@ -115,42 +184,58 @@ def receive_event(event: GamingEvent):
     conn = get_connection()
 
     try:
-        cursor = conn.execute("""
-            INSERT INTO gaming_events (
-                player_id,
-                event_type,
-                score,
-                event_timestamp,
-                kafka_partition,
-                kafka_offset
-            )
-            VALUES (?, ?, ?, ?, ?, ?)
-        """, (
-            event.player_id,
-            event.event_type,
-            event.score,
-            event.event_timestamp or datetime.now(timezone.utc).isoformat(),
-            event.kafka_partition,
-            event.kafka_offset
-        ))
+
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                INSERT INTO gaming_events (
+
+                    player_id,
+                    event_type,
+                    score,
+                    event_timestamp,
+                    kafka_partition,
+                    kafka_offset
+
+                )
+
+                VALUES (%s, %s, %s, %s, %s, %s)
+
+                RETURNING id
+
+            """, (
+
+                event.player_id,
+                event.event_type,
+                event.score,
+                event.event_timestamp or datetime.now(timezone.utc),
+                event.kafka_partition,
+                event.kafka_offset
+
+            ))
+
+            result = cursor.fetchone()
 
         conn.commit()
 
         return {
             "status": "success",
-            "message": "Gaming event received successfully",
-            "event_id": cursor.lastrowid,
+            "message": "Gaming event stored in Neon PostgreSQL",
+            "event_id": result["id"],
             "player_id": event.player_id
         }
 
-    except sqlite3.Error as e:
+    except psycopg2.Error:
+
         conn.rollback()
+
         raise HTTPException(
             status_code=500,
-            detail=str(e)
+            detail="Failed to store gaming event"
         )
 
     finally:
+
         conn.close()
 
 
@@ -166,16 +251,22 @@ def get_events(
     conn = get_connection()
 
     try:
-        rows = conn.execute("""
-            SELECT *
-            FROM gaming_events
-            ORDER BY id DESC
-            LIMIT ?
-        """, (limit,)).fetchall()
 
-        return [dict(row) for row in rows]
+        with conn.cursor() as cursor:
+
+            cursor.execute("""
+                SELECT *
+                FROM gaming_events
+                ORDER BY id DESC
+                LIMIT %s
+            """, (limit,))
+
+            rows = cursor.fetchall()
+
+        return rows
 
     finally:
+
         conn.close()
 
 
@@ -189,40 +280,45 @@ def get_stats():
     conn = get_connection()
 
     try:
-        total_events = conn.execute("""
-            SELECT COUNT(*) FROM gaming_events
-        """).fetchone()[0]
 
-        total_players = conn.execute("""
-            SELECT COUNT(DISTINCT player_id)
-            FROM gaming_events
-        """).fetchone()[0]
+        with conn.cursor() as cursor:
 
-        total_kills = conn.execute("""
-            SELECT COUNT(*)
-            FROM gaming_events
-            WHERE event_type = 'kill'
-        """).fetchone()[0]
+            cursor.execute("""
+                SELECT
 
-        total_deaths = conn.execute("""
-            SELECT COUNT(*)
-            FROM gaming_events
-            WHERE event_type = 'death'
-        """).fetchone()[0]
+                    COUNT(*) AS total_events,
 
-        average_score = conn.execute("""
-            SELECT AVG(score) FROM gaming_events
-        """).fetchone()[0]
+                    COUNT(DISTINCT player_id)
+                    AS total_players,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'kill'
+                    ) AS total_kills,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'death'
+                    ) AS total_deaths,
+
+                    COALESCE(AVG(score), 0)
+                    AS average_score
+
+                FROM gaming_events
+            """)
+
+            result = cursor.fetchone()
 
         return {
-            "total_events": total_events,
-            "total_players": total_players,
-            "total_kills": total_kills,
-            "total_deaths": total_deaths,
-            "average_score": round(average_score or 0, 2)
+            "total_events": result["total_events"],
+            "total_players": result["total_players"],
+            "total_kills": result["total_kills"],
+            "total_deaths": result["total_deaths"],
+            "average_score": round(
+                float(result["average_score"]), 2
+            )
         }
 
     finally:
+
         conn.close()
 
 
@@ -236,35 +332,43 @@ def get_players():
     conn = get_connection()
 
     try:
-        rows = conn.execute("""
-            SELECT
-                player_id,
-                COUNT(*) AS total_events,
 
-                SUM(
-                    CASE WHEN event_type = 'kill'
-                    THEN 1 ELSE 0 END
-                ) AS total_kills,
+        with conn.cursor() as cursor:
 
-                SUM(
-                    CASE WHEN event_type = 'death'
-                    THEN 1 ELSE 0 END
-                ) AS total_deaths,
+            cursor.execute("""
+                SELECT
 
-                AVG(score) AS average_score
+                    player_id,
 
-            FROM gaming_events
-            GROUP BY player_id
-            ORDER BY total_events DESC
+                    COUNT(*) AS total_events,
 
-        """).fetchall()
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'kill'
+                    ) AS total_kills,
+
+                    COUNT(*) FILTER (
+                        WHERE event_type = 'death'
+                    ) AS total_deaths,
+
+                    COALESCE(AVG(score), 0)
+                    AS average_score
+
+                FROM gaming_events
+
+                GROUP BY player_id
+
+                ORDER BY total_events DESC
+
+            """)
+
+            rows = cursor.fetchall()
 
         result = []
 
-        for row in rows:
-            player = dict(row)
+        for player in rows:
 
             kills = player["total_kills"] or 0
+
             deaths = player["total_deaths"] or 0
 
             player["kd_ratio"] = round(
@@ -273,8 +377,7 @@ def get_players():
             )
 
             player["average_score"] = round(
-                player["average_score"] or 0,
-                2
+                float(player["average_score"]), 2
             )
 
             result.append(player)
@@ -282,6 +385,7 @@ def get_players():
         return result
 
     finally:
+
         conn.close()
 
 
@@ -295,40 +399,66 @@ def get_metrics():
     conn = get_connection()
 
     try:
-        total_events = conn.execute("""
-            SELECT COUNT(*) FROM gaming_events
-        """).fetchone()[0]
 
-        recent_events = conn.execute("""
-            SELECT COUNT(*)
-            FROM gaming_events
-            WHERE julianday(received_at) >=
-                  julianday('now', 'localtime', '-60 seconds')
-        """).fetchone()[0]
+        with conn.cursor() as cursor:
 
-        avg_latency = conn.execute("""
-            SELECT AVG(
-                (julianday(received_at) -
-                 julianday(event_timestamp)) * 86400000
-            )
-            FROM gaming_events
-            WHERE received_at IS NOT NULL
-              AND event_timestamp IS NOT NULL
-        """).fetchone()[0]
+            cursor.execute("""
+                SELECT
+
+                    COUNT(*) AS total_events,
+
+                    COUNT(*) FILTER (
+                        WHERE received_at >=
+                        NOW() - INTERVAL '60 seconds'
+                    ) AS events_last_60_seconds,
+
+                    COALESCE(
+                        AVG(
+                            EXTRACT(
+                                EPOCH FROM (
+                                    received_at - event_timestamp
+                                )
+                            ) * 1000
+                        ) FILTER (
+                            WHERE received_at IS NOT NULL
+                            AND event_timestamp IS NOT NULL
+                        ),
+                        0
+                    ) AS average_latency_ms
+
+                FROM gaming_events
+            """)
+
+            result = cursor.fetchone()
+
+        recent_events = result["events_last_60_seconds"]
 
         throughput = recent_events / 60
 
         return {
-            "total_events": total_events,
+
+            "total_events": result["total_events"],
+
             "events_last_60_seconds": recent_events,
+
             "throughput_events_per_second": round(
                 throughput, 2
             ),
+
             "average_latency_ms": round(
-                max(0, avg_latency or 0), 2
+                max(0, float(result["average_latency_ms"])), 2
             ),
+
             "measurement_window_seconds": 60
+
         }
 
     finally:
+
         conn.close()
+
+
+# ==========================================
+# END OF GAMING ANALYTICS API
+# ==========================================
+```
