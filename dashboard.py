@@ -14,7 +14,8 @@ st.set_page_config(
     layout="wide"
 )
 
-API_URL = "http://127.0.0.1:8000"
+# DEPLOYED FASTAPI URL
+API_URL = "https://gaming-analytics-api.onrender.com"
 
 st_autorefresh(interval=5000, key="gaming_refresh")
 
@@ -27,12 +28,13 @@ def get_data(endpoint):
     try:
         response = requests.get(
             f"{API_URL}/{endpoint}",
-            timeout=5
+            timeout=30
         )
         response.raise_for_status()
         return response.json()
 
-    except requests.RequestException:
+    except requests.RequestException as e:
+        st.error(f"API Error: {e}")
         return None
 
 
@@ -52,11 +54,11 @@ st.caption(
     "and Visualization using Apache Kafka"
 )
 
-st.success("Dashboard connected to FastAPI")
-
 if stats is None:
     st.error("FastAPI connection failed.")
     st.stop()
+else:
+    st.success("Dashboard connected to deployed FastAPI!")
 
 # =====================================
 # GAMING KPI
