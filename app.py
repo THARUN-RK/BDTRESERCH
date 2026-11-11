@@ -36,6 +36,24 @@ def get_connection():
     conn = sqlite3.connect(DATABASE)
     conn.row_factory = sqlite3.Row
     return conn
+def initialize_database():
+    with get_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS gaming_events (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                player_id TEXT NOT NULL,
+                event_type TEXT NOT NULL,
+                score INTEGER DEFAULT 0,
+                event_timestamp TEXT,
+                kafka_partition INTEGER,
+                kafka_offset INTEGER,
+                received_at TEXT DEFAULT CURRENT_TIMESTAMP
+            )
+        """)
+        conn.commit()
+
+
+initialize_database()
 
 
 # ==========================================
