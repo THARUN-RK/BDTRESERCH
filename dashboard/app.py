@@ -21,8 +21,8 @@ def _get_json(path: str) -> Any:
     except requests.exceptions.RequestException as error:
         st.error(f"Cannot reach the analytics API at {API_BASE_URL}: {error}")
         st.info(
-            "Start it in another PowerShell window with "
-            "`py -3.13 -m uvicorn backend.app:app --host 127.0.0.1 --port 8000`."
+            "Check that the Render API service is running and that "
+            "`GAMING_ANALYTICS_API_URL` points to its public URL."
         )
         st.stop()
 
@@ -242,7 +242,7 @@ def _render_dashboard() -> None:
     else:
         st.warning(
             f"Broker is not reachable at {kafka['bootstrap_servers']}. "
-            "Start the local KRaft broker to stream events."
+            "Check the deployed Kafka broker configuration and network connectivity."
         )
     st.caption(
         f"Consumer group: {kafka['consumer_group']} · "
