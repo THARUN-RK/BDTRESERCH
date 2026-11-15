@@ -5,3 +5,4 @@ requests
 pandas
 plotly
 streamlit-autorefresh
+psycopg2-binary
