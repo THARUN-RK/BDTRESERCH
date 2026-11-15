@@ -1,4 +1,4 @@
-"""Auto-refreshing local dashboard backed by the FastAPI analytics service."""
+"""Auto-refreshing dashboard backed by the deployed FastAPI analytics service."""
 
 from __future__ import annotations
 
@@ -10,7 +10,7 @@ import requests
 import streamlit as st
 
 API_BASE_URL = os.environ.get(
-    "GAMING_ANALYTICS_API_URL", "http://127.0.0.1:8000"
+    "GAMING_ANALYTICS_API_URL", "https://gaming-analytics-api.onrender.com"
 ).rstrip("/")
 REFRESH_SECONDS = 5
 
@@ -68,7 +68,7 @@ def _render_dashboard() -> None:
 
     st.title("Gaming Analytics")
     st.caption(
-        f"Live view of locally stored gaming events · refreshes every {REFRESH_SECONDS} seconds"
+        f"Live gaming analytics · refreshes every {REFRESH_SECONDS} seconds"
     )
 
     metrics = [
@@ -264,7 +264,7 @@ with st.sidebar:
     st.markdown(f"API: `{API_BASE_URL}`")
     st.caption(f"Auto-refresh: every {REFRESH_SECONDS} seconds")
     st.divider()
-    st.caption("Only values stored in the local SQLite database are displayed.")
+    st.caption("Only values returned by the deployed analytics API are displayed.")
 
 
 @st.fragment(run_every=f"{REFRESH_SECONDS}s")
