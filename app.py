@@ -2,7 +2,7 @@
 import os
 import psycopg2
 
-from psycopg2.extras import RealDictCursor
+from psycopg2.extras import RealDictCursor, execute_values
 from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -70,6 +70,8 @@ def initialize_database():
 
                     id BIGSERIAL PRIMARY KEY,
 
+                    event_id TEXT UNIQUE,
+
                     player_id TEXT NOT NULL,
 
                     event_type TEXT NOT NULL,
@@ -86,6 +88,15 @@ def initialize_database():
                         DEFAULT CURRENT_TIMESTAMP
                 )
             """)
+
+            # Upgrade existing deployments without deleting previously stored rows.
+            cursor.execute(
+                "ALTER TABLE gaming_events ADD COLUMN IF NOT EXISTS event_id TEXT"
+            )
+            cursor.execute(
+                "CREATE UNIQUE INDEX IF NOT EXISTS "
+                "ux_gaming_events_event_id ON gaming_events (event_id)"
+            )
 
         conn.commit()
 
@@ -105,6 +116,8 @@ def startup_event():
 
 class GamingEvent(BaseModel):
 
+    event_id: str | None = None
+
     player_id: str
 
     event_type: str
@@ -116,6 +129,13 @@ class GamingEvent(BaseModel):
     kafka_partition: int | None = None
 
     kafka_offset: int | None = None
+
+
+
+
+class GamingEventBatch(BaseModel):
+
+    events: list[GamingEvent]
 
 
 # ==========================================
@@ -236,6 +256,79 @@ def receive_event(event: GamingEvent):
 
     finally:
 
+        conn.close()
+
+
+
+# ==========================================
+# BATCH RECEIVE GAMING EVENTS
+# ==========================================
+
+@app.post("/events/batch")
+def receive_events_batch(batch: GamingEventBatch):
+
+    if not batch.events:
+        raise HTTPException(status_code=400, detail="events cannot be empty")
+
+    if len(batch.events) > 1000:
+        raise HTTPException(status_code=413, detail="Maximum 1000 events per batch")
+
+    rows = [
+        (
+            event.event_id,
+            event.player_id,
+            event.event_type,
+            event.score,
+            event.event_timestamp or datetime.now(timezone.utc),
+            event.kafka_partition,
+            event.kafka_offset
+        )
+        for event in batch.events
+    ]
+
+    conn = get_connection()
+
+    try:
+        with conn.cursor() as cursor:
+            inserted = execute_values(
+                cursor,
+                """
+                INSERT INTO gaming_events (
+                    event_id,
+                    player_id,
+                    event_type,
+                    score,
+                    event_timestamp,
+                    kafka_partition,
+                    kafka_offset
+                )
+                VALUES %s
+                ON CONFLICT (event_id) DO NOTHING
+                RETURNING id
+                """,
+                rows,
+                template="(%s, %s, %s, %s, %s, %s, %s)",
+                page_size=500,
+                fetch=True
+            )
+
+        conn.commit()
+
+        return {
+            "status": "success",
+            "received": len(rows),
+            "inserted": len(inserted),
+            "duplicates_skipped": len(rows) - len(inserted)
+        }
+
+    except psycopg2.Error:
+        conn.rollback()
+        raise HTTPException(
+            status_code=500,
+            detail="Failed to store event batch"
+        )
+
+    finally:
         conn.close()
 
 
