@@ -1,27 +1,51 @@
-name: Temporary Kafka integration test
+name: Generate 10,000 Gaming Events through Apache Kafka
 
 on:
   workflow_dispatch:
+    inputs:
+      event_count:
+        description: "Number of gaming events to generate (1–100000)"
+        required: true
+        default: "10000"
+        type: string
 
 permissions:
   contents: read
 
 jobs:
-  kafka-smoke-test:
+  generate-and-store:
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 30
+    env:
+      EVENT_COUNT: ${{ inputs.event_count }}
+      GAMING_ANALYTICS_API_URL: ${{ vars.GAMING_ANALYTICS_API_URL }}
 
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
+
+      - name: Validate configuration
+        run: |
+          python - <<'PY'
+          import os
+          count = int(os.environ["EVENT_COUNT"])
+          if not 1 <= count <= 100000:
+              raise SystemExit("event_count must be between 1 and 100000")
+          if not os.environ.get("GAMING_ANALYTICS_API_URL"):
+              raise SystemExit(
+                  "Set repository variable GAMING_ANALYTICS_API_URL "
+                  "to your deployed FastAPI base URL."
+              )
+          print(f"Will generate {count:,} events.")
+          PY
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: "3.12"
 
-      - name: Install Kafka client dependency
-        run: python -m pip install --upgrade pip confluent-kafka
+      - name: Install Kafka client and HTTP dependency
+        run: python -m pip install --upgrade pip confluent-kafka requests
 
       - name: Start temporary Apache Kafka 4.4.0
         run: |
@@ -39,11 +63,11 @@ jobs:
             -e KAFKA_TRANSACTION_STATE_LOG_MIN_ISR=1 \
             apache/kafka:4.4.0
 
-      - name: Wait for Kafka to become ready
+      - name: Wait for Kafka broker
         run: |
           for attempt in $(seq 1 60); do
             if docker exec kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list >/dev/null 2>&1; then
-              echo "Kafka is ready."
+              echo "Apache Kafka 4.4.0 is ready."
               exit 0
             fi
             sleep 2
@@ -52,9 +76,16 @@ jobs:
           echo "Kafka did not become ready in time."
           exit 1
 
-      - name: Test this repository's Kafka producer and consumer
+      - name: Generate, publish, consume, and store events
+        env:
+          PYTHONUNBUFFERED: "1"
         run: |
           python - <<'PY'
+          import os
+          import time
+          import requests
+
+          from event_generator.generator import GamingEventGenerator
           from kafka.client import (
               DeliveryTracker,
               create_producer,
@@ -65,44 +96,107 @@ jobs:
           )
           from kafka.settings import KafkaSettings
 
+          count = int(os.environ["EVENT_COUNT"])
+          api_url = os.environ["GAMING_ANALYTICS_API_URL"].rstrip("/")
+          batch_size = 500
+
+          # Wake a sleeping Render service and verify the database-backed API.
+          health_url = f"{api_url}/health"
+          for attempt in range(12):
+              try:
+                  health = requests.get(health_url, timeout=20)
+                  health.raise_for_status()
+                  print("FastAPI health check:", health.json())
+                  break
+              except requests.RequestException:
+                  if attempt == 11:
+                      raise
+                  print(f"Waiting for API startup ({attempt + 1}/12)...")
+                  time.sleep(10)
+
           settings = KafkaSettings(
               bootstrap_servers="localhost:9092",
-              events_topic="gha-smoke-events",
-              dead_letter_topic="gha-smoke-dlq",
-              consumer_group="gha-smoke-consumer",
-              partitions=1,
+              events_topic="gaming-events",
+              dead_letter_topic="gaming-events-dlq",
+              consumer_group="github-actions-gaming-analytics",
+              partitions=3,
               replication_factor=1,
           )
-
           ensure_topics(settings)
 
           producer = create_producer(settings)
-          tracker = DeliveryTracker()
-          publish_event(
-              producer,
-              {
-                  "event_id": "gha-kafka-smoke-test",
-                  "player_id": "test-player-001",
-                  "event_type": "match_start",
-                  "score": 0,
-              },
-              settings,
-              tracker,
-          )
-          flush_producer(producer, tracker)
+          delivery_tracker = DeliveryTracker()
+          generator = GamingEventGenerator(players=500)
 
+          print(f"Publishing {count:,} events to Kafka...")
+          generated = generator.run(
+              count=count,
+              events_per_second=500,
+              sink=lambda event: publish_event(
+                  producer, event, settings, delivery_tracker
+              ),
+          )
+          flush_producer(producer, delivery_tracker)
+          print(f"Published {generated:,} events successfully.")
+
+          batch = []
+          totals = {"received": 0, "inserted": 0, "duplicates_skipped": 0}
+
+          def send_batch():
+              if not batch:
+                  return
+              response = requests.post(
+                  f"{api_url}/events/batch",
+                  json={"events": batch},
+                  timeout=90,
+              )
+              response.raise_for_status()
+              result = response.json()
+              for key in totals:
+                  totals[key] += int(result.get(key, 0))
+              print(
+                  "Database batch:",
+                  f"received={result.get('received')},",
+                  f"inserted={result.get('inserted')},",
+                  f"duplicates_skipped={result.get('duplicates_skipped')}",
+              )
+              batch.clear()
+
+          def persist_event(event):
+              batch.append({
+                  "event_id": event["event_id"],
+                  "player_id": event["player_id"],
+                  "event_type": event["event_type"],
+                  "score": int(event.get("score", 0)),
+                  "event_timestamp": event["timestamp"],
+              })
+              if len(batch) >= batch_size:
+                  send_batch()
+              return True
+
+          print("Consuming Kafka events and persisting them to Neon PostgreSQL...")
           processed, dead_lettered = consume_events(
               settings,
-              processor=lambda event: (
-                  True if event.get("event_id") == "gha-kafka-smoke-test" else False
-              ),
-              max_messages=1,
-              group_id="gha-smoke-test-run",
+              processor=persist_event,
+              max_messages=count,
+              group_id=f"github-actions-run-{os.environ.get('GITHUB_RUN_ID', 'manual')}",
           )
+          send_batch()
 
-          assert processed == 1, f"Expected 1 processed event, got {processed}"
-          assert dead_lettered == 0, f"Expected 0 DLQ events, got {dead_lettered}"
-          print("PASS: repository Kafka producer -> broker -> consumer.")
+          print("========== RUN SUMMARY ==========")
+          print(f"Generated:       {generated:,}")
+          print(f"Kafka consumed:  {processed:,}")
+          print(f"Dead-lettered:   {dead_lettered:,}")
+          print(f"DB received:     {totals['received']:,}")
+          print(f"DB inserted:     {totals['inserted']:,}")
+          print(f"Duplicates:      {totals['duplicates_skipped']:,}")
+
+          if generated != count or processed != count or dead_lettered != 0:
+              raise SystemExit("Event pipeline count check failed.")
+          if totals["inserted"] + totals["duplicates_skipped"] != count:
+              raise SystemExit("Database persistence count check failed.")
+
+          print("SUCCESS: Kafka -> consumer -> Neon PostgreSQL completed.")
           PY
 
       - name: Show Kafka logs and clean up
