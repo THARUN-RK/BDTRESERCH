@@ -70,7 +70,7 @@ def initialize_database():
 
                     id BIGSERIAL PRIMARY KEY,
 
-                    event_id TEXT UNIQUE,
+                    event_id TEXT,
 
                     player_id TEXT NOT NULL,
 
