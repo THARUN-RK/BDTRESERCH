@@ -43,8 +43,9 @@ DATABASE_URL = os.getenv("DATABASE_URL")
 def get_connection():
 
     if not DATABASE_URL:
-        raise RuntimeError(
-            "DATABASE_URL environment variable is missing"
+        raise HTTPException(
+            status_code=503,
+            detail="DATABASE_URL environment variable is not configured. Please add DATABASE_URL in Render Dashboard -> Environment."
         )
 
     return psycopg2.connect(
@@ -60,9 +61,14 @@ def get_connection():
 
 def initialize_database():
 
-    conn = get_connection()
+    if not DATABASE_URL:
+        print("[Notice] DATABASE_URL is not set. Service starting in demo/standby mode.")
+        print("[Notice] Add DATABASE_URL in Render Dashboard -> Environment to connect Neon PostgreSQL.")
+        return
 
     try:
+        conn = get_connection()
+
         with conn.cursor() as cursor:
 
             cursor.execute("""
@@ -99,9 +105,12 @@ def initialize_database():
             )
 
         conn.commit()
-
-    finally:
         conn.close()
+        print("[Success] Connected to PostgreSQL and initialized schema.")
+
+    except Exception as e:
+        print(f"[Warning] PostgreSQL connection failed at startup: {e}")
+        print("[Notice] The API will still start and listen on port. Database endpoints will report degraded.")
 
 
 @app.on_event("startup")
@@ -171,6 +180,14 @@ def home():
 @app.get("/health")
 def health():
 
+    if not DATABASE_URL:
+        return {
+            "status": "online",
+            "database": "unconfigured (set DATABASE_URL in Render)",
+            "service": "Gaming Analytics API",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
+
     try:
 
         conn = get_connection()
@@ -187,11 +204,13 @@ def health():
             "timestamp": datetime.now(timezone.utc).isoformat()
         }
 
-    except Exception:
-        raise HTTPException(
-            status_code=503,
-            detail="Database connection failed"
-        )
+    except Exception as e:
+        return {
+            "status": "degraded",
+            "database": f"connection failed: {e}",
+            "service": "Gaming Analytics API",
+            "timestamp": datetime.now(timezone.utc).isoformat()
+        }
 
 
 # ==========================================
