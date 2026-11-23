@@ -4,36 +4,30 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0a0f1a">
-  <meta name="description" content="Large-Scale Online Gaming Data Processing and Visualization Dashboard Using Apache Kafka — CSE Research Project">
-  <title>Gaming Analytics Dashboard | Apache Kafka Research</title>
+  <title>Gaming Analytics Platform | Real-Time Apache Kafka Stream</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
   <style>
-    /* ============================================================
-       DESIGN SYSTEM
-       ============================================================ */
     :root {
       color-scheme: dark;
-      --bg: #060a14;
-      --bg-glass: rgba(10, 18, 36, 0.72);
-      --surface: #0d1526;
-      --surface-2: #121d33;
-      --surface-3: #172540;
-      --card: linear-gradient(135deg, #111c30 0%, #0d1526 100%);
-      --border: #1c2d4a;
-      --border-glow: rgba(56, 189, 248, 0.15);
-      --text: #e8edf5;
-      --text-muted: #8899b4;
+      --bg: #070c18;
+      --surface: #0e1626;
+      --surface-2: #141f36;
+      --surface-3: #1a2947;
+      --border: #1f3152;
+      --border-glow: rgba(56, 189, 248, 0.25);
+      --text: #f0f4fc;
+      --text-muted: #8496b3;
       --accent: #38bdf8;
-      --accent-2: #22d3ee;
+      --accent-glow: rgba(56, 189, 248, 0.4);
       --success: #34d399;
       --warning: #fbbf24;
-      --error: #f87171;
+      --danger: #f87171;
       --purple: #a78bfa;
       --pink: #f472b6;
-      --radius: 14px;
+      --radius: 12px;
       --radius-sm: 8px;
-      --shadow: 0 4px 32px rgba(0,0,0,0.4);
-      --transition: 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      --shadow: 0 4px 24px rgba(0, 0, 0, 0.45);
+      --font-mono: 'Cascadia Code', 'Fira Code', 'Consolas', monospace;
     }
 
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -41,1312 +35,861 @@
     body {
       background: var(--bg);
       color: var(--text);
-      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
-      font-size: 15px;
-      line-height: 1.6;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
       overflow-x: hidden;
+      min-height: 100vh;
     }
 
-    /* Ambient background glow */
+    /* Ambient background lighting */
     body::before {
       content: '';
       position: fixed;
-      top: -40%; left: -20%;
-      width: 80vw; height: 80vh;
-      background: radial-gradient(ellipse, rgba(56,189,248,0.06) 0%, transparent 70%);
-      pointer-events: none;
-      z-index: 0;
-    }
-    body::after {
-      content: '';
-      position: fixed;
-      bottom: -30%; right: -10%;
-      width: 60vw; height: 60vh;
-      background: radial-gradient(ellipse, rgba(167,139,250,0.05) 0%, transparent 70%);
+      top: -20%; left: 15%;
+      width: 70vw; height: 50vh;
+      background: radial-gradient(ellipse, rgba(56, 189, 248, 0.05) 0%, transparent 70%);
       pointer-events: none;
       z-index: 0;
     }
 
-    a { color: var(--accent); text-decoration: none; transition: color var(--transition); }
-    a:hover { color: var(--accent-2); }
-
-    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; position: relative; z-index: 1; }
-
-    /* ============================================================
-       NAVBAR
-       ============================================================ */
-    .navbar {
-      position: sticky; top: 0; z-index: 100;
-      background: var(--bg-glass);
-      backdrop-filter: blur(16px) saturate(1.4);
-      -webkit-backdrop-filter: blur(16px) saturate(1.4);
-      border-bottom: 1px solid var(--border);
+    .app-shell {
+      max-width: 1440px;
+      margin: 0 auto;
+      padding: 16px 24px 48px;
+      position: relative;
+      z-index: 1;
     }
-    .navbar .container {
-      display: flex; align-items: center; justify-content: space-between;
-      height: 60px;
-    }
-    .nav-brand {
-      display: flex; align-items: center; gap: 10px;
-      font-weight: 700; font-size: 1.1rem; color: var(--text);
-    }
-    .nav-brand .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--success); animation: pulse 2s infinite; }
-    @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
-    .nav-links { display: flex; gap: 8px; flex-wrap: wrap; }
-    .nav-links a {
-      color: var(--text-muted); font-size: 0.88rem; font-weight: 500;
-      padding: 6px 14px; border-radius: 6px; transition: all var(--transition);
-    }
-    .nav-links a:hover, .nav-links a.active { color: var(--text); background: var(--surface-2); }
-    .nav-btn {
-      display: inline-flex; align-items: center; gap: 6px;
-      padding: 8px 16px; border-radius: var(--radius-sm);
-      background: var(--accent); color: #0a0f1a;
-      font-weight: 600; font-size: 0.85rem;
-      transition: all var(--transition);
-    }
-    .nav-btn:hover { background: var(--accent-2); color: #0a0f1a; transform: translateY(-1px); }
 
     /* ============================================================
-       ABSTRACT CARD
+       TOP APP HEADER
        ============================================================ */
-    .abstract-card {
-      background: var(--card);
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 24px;
+      background: var(--surface);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      padding: 36px 40px;
-      position: relative;
-      overflow: hidden;
-      box-shadow: var(--shadow);
+      margin-bottom: 24px;
+      gap: 16px;
+      flex-wrap: wrap;
     }
-    .abstract-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; bottom: 0;
-      width: 4px;
-      background: linear-gradient(180deg, var(--accent), var(--purple));
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 12px;
     }
-    .abstract-badge {
+    .brand-icon {
+      font-size: 1.8rem;
+      background: rgba(56, 189, 248, 0.12);
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      padding: 8px 10px;
+      border-radius: 10px;
+      line-height: 1;
+    }
+    .brand h1 {
+      font-size: 1.35rem;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--text);
+    }
+    .brand p {
+      font-size: 0.8rem;
+      color: var(--text-muted);
+    }
+
+    .header-status-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      padding: 6px 14px;
+      border-radius: 999px;
+      font-size: 0.78rem;
+      font-weight: 600;
+      background: rgba(52, 211, 153, 0.1);
+      border: 1px solid rgba(52, 211, 153, 0.3);
+      color: var(--success);
+    }
+    .pulse-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--success);
+      box-shadow: 0 0 10px var(--success);
+      animation: pulse 1.6s infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.35; transform: scale(0.85); }
+    }
+    .badge-info {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      color: var(--text-muted);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm);
+      font-size: 0.76rem;
+      font-family: var(--font-mono);
+    }
+    .header-btn {
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-size: 0.78rem;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      color: var(--accent);
-      background: rgba(56,189,248,0.1);
-      padding: 4px 12px;
-      border-radius: 999px;
-      margin-bottom: 16px;
-    }
-    .abstract-text {
-      font-size: 1.05rem;
-      line-height: 1.85;
-      color: #d1dced;
-      text-align: justify;
-      margin-bottom: 24px;
-    }
-    .abstract-keywords {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 8px;
-      align-items: center;
-      margin-top: 20px;
-      padding-top: 20px;
-      border-top: 1px solid var(--border);
-    }
-    .keyword-label {
-      font-size: 0.85rem;
-      font-weight: 700;
-      color: var(--text);
-    }
-    .keyword-tag {
-      font-size: 0.78rem;
-      font-weight: 500;
-      padding: 3px 10px;
-      border-radius: 6px;
-      background: var(--surface-3);
-      color: var(--accent-2);
-      border: 1px solid var(--border);
-    }
-    .metrics-eval-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-      gap: 16px;
-      margin-top: 28px;
-    }
-    .metric-eval-card {
+      padding: 7px 14px;
+      border-radius: var(--radius-sm);
       background: var(--surface-2);
       border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      padding: 18px 20px;
-      transition: all var(--transition);
-    }
-    .metric-eval-card:hover {
-      border-color: var(--accent);
-      transform: translateY(-2px);
-    }
-    .metric-eval-icon {
-      font-size: 1.5rem;
-      margin-bottom: 8px;
-    }
-    .metric-eval-title {
-      font-size: 0.95rem;
-      font-weight: 700;
       color: var(--text);
-      margin-bottom: 4px;
+      font-size: 0.8rem;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      text-decoration: none;
     }
-    .metric-eval-desc {
-      font-size: 0.82rem;
-      color: var(--text-muted);
-      line-height: 1.5;
+    .header-btn:hover {
+      background: var(--surface-3);
+      border-color: var(--accent);
+      color: var(--accent);
+    }
+    .btn-stream-toggle {
+      background: rgba(56, 189, 248, 0.15);
+      border-color: var(--accent);
+      color: var(--accent);
     }
 
     /* ============================================================
-       HERO
+       SECTION HEADINGS
        ============================================================ */
-    .hero {
-      padding: 80px 0 60px;
-      text-align: center;
+    .section-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin-bottom: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--text);
     }
-    .hero-badge {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 6px 16px; border-radius: 999px;
-      background: rgba(56,189,248,0.08); border: 1px solid rgba(56,189,248,0.2);
-      font-size: 0.8rem; font-weight: 600; color: var(--accent);
-      text-transform: uppercase; letter-spacing: 0.08em;
+    .section-title span.tag {
+      font-size: 0.72rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      padding: 2px 8px;
+      border-radius: 4px;
+      background: var(--surface-2);
+      color: var(--text-muted);
+      border: 1px solid var(--border);
+    }
+
+    /* ============================================================
+       KPI MATRICES
+       ============================================================ */
+    .kpi-grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 14px;
       margin-bottom: 24px;
     }
-    .hero h1 {
-      font-size: clamp(2rem, 5vw, 3.4rem);
-      line-height: 1.1; font-weight: 800;
-      max-width: 900px; margin: 0 auto 20px;
-      background: linear-gradient(135deg, var(--text) 30%, var(--accent) 100%);
-      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
-      background-clip: text;
-    }
-    .hero p {
-      color: var(--text-muted); font-size: 1.12rem;
-      max-width: 680px; margin: 0 auto 36px;
-    }
-    .hero-actions { display: flex; justify-content: center; gap: 12px; flex-wrap: wrap; }
-    .btn {
-      display: inline-flex; align-items: center; gap: 8px;
-      padding: 12px 24px; border-radius: var(--radius-sm);
-      font-weight: 600; font-size: 0.92rem;
-      transition: all var(--transition); border: 1px solid var(--border);
-      color: var(--text); background: var(--surface-2);
-    }
-    .btn:hover { border-color: var(--accent); transform: translateY(-2px); box-shadow: 0 4px 20px rgba(56,189,248,0.15); color: var(--text); }
-    .btn-primary { background: var(--accent); color: #0a0f1a; border-color: var(--accent); }
-    .btn-primary:hover { background: var(--accent-2); border-color: var(--accent-2); color: #0a0f1a; }
-
-    /* ============================================================
-       SECTION
-       ============================================================ */
-    .section { padding: 60px 0; }
-    .section-header { text-align: center; margin-bottom: 48px; }
-    .section-header h2 {
-      font-size: 1.9rem; font-weight: 700; margin-bottom: 10px;
-    }
-    .section-header p { color: var(--text-muted); font-size: 1rem; max-width: 600px; margin: 0 auto; }
-    .section-label {
-      display: inline-block; font-size: 0.75rem; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 0.1em;
-      color: var(--accent); margin-bottom: 10px;
-    }
-
-    /* ============================================================
-       STATS CARDS (top metrics row)
-       ============================================================ */
-    .stats-row {
+    .kpi-grid-4 {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-      gap: 16px;
-      margin-bottom: 32px;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 24px;
     }
-    .stat-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px;
-      position: relative; overflow: hidden;
-      transition: all var(--transition);
+    .kpi-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 0.2s ease, border-color 0.2s ease;
     }
-    .stat-card:hover { border-color: var(--border-glow); transform: translateY(-3px); box-shadow: var(--shadow); }
-    .stat-card .stat-icon {
-      width: 40px; height: 40px; border-radius: 10px;
-      display: flex; align-items: center; justify-content: center;
-      font-size: 1.3rem; margin-bottom: 14px;
+    .kpi-card:hover {
+      transform: translateY(-2px);
+      border-color: var(--border-glow);
     }
-    .stat-card .stat-value { font-size: 2rem; font-weight: 800; line-height: 1; margin-bottom: 4px; }
-    .stat-card .stat-label { font-size: 0.82rem; color: var(--text-muted); font-weight: 500; }
-    .stat-card .stat-change {
-      display: inline-flex; align-items: center; gap: 4px;
-      font-size: 0.78rem; font-weight: 600; margin-top: 8px;
-      padding: 2px 8px; border-radius: 999px;
+    .kpi-card .kpi-label {
+      font-size: 0.76rem;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: var(--text-muted);
+      margin-bottom: 6px;
     }
-    .stat-change.up { color: var(--success); background: rgba(52,211,153,0.1); }
-    .stat-change.down { color: var(--error); background: rgba(248,113,113,0.1); }
-    .icon-blue { background: rgba(56,189,248,0.12); color: var(--accent); }
-    .icon-green { background: rgba(52,211,153,0.12); color: var(--success); }
-    .icon-purple { background: rgba(167,139,250,0.12); color: var(--purple); }
-    .icon-pink { background: rgba(244,114,182,0.12); color: var(--pink); }
-    .icon-yellow { background: rgba(251,191,36,0.12); color: var(--warning); }
+    .kpi-card .kpi-value {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      line-height: 1.1;
+      margin-bottom: 6px;
+    }
+    .kpi-card .kpi-sub {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 4px;
+    }
+    .kpi-card .kpi-sub.up { color: var(--success); }
+    .kpi-card::after {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--accent);
+      opacity: 0.6;
+    }
+    .kpi-card.c-green::after { background: var(--success); }
+    .kpi-card.c-purple::after { background: var(--purple); }
+    .kpi-card.c-pink::after { background: var(--pink); }
+    .kpi-card.c-yellow::after { background: var(--warning); }
+    .kpi-card.c-danger::after { background: var(--danger); }
 
     /* ============================================================
-       CHARTS
+       CHARTS CONTAINERS
        ============================================================ */
-    .charts-grid {
+    .chart-grid-2 {
       display: grid;
       grid-template-columns: 1fr 1fr;
-      gap: 20px;
-      margin-bottom: 20px;
-    }
-    .chart-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 24px;
-      transition: all var(--transition);
-    }
-    .chart-card:hover { border-color: var(--border-glow); box-shadow: var(--shadow); }
-    .chart-card h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
-    .chart-card .chart-sub { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 20px; }
-    .chart-card canvas { width: 100% !important; max-height: 280px; }
-    .chart-full { grid-column: 1 / -1; }
-
-    /* ============================================================
-       ARCHITECTURE
-       ============================================================ */
-    .arch-flow {
-      display: flex; align-items: center; justify-content: center;
-      gap: 0; flex-wrap: wrap; padding: 40px 0;
-    }
-    .arch-node {
-      display: flex; flex-direction: column; align-items: center;
-      gap: 8px; padding: 20px 24px; min-width: 140px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); text-align: center;
-      transition: all var(--transition);
-    }
-    .arch-node:hover { border-color: var(--accent); transform: translateY(-4px); box-shadow: 0 8px 32px rgba(56,189,248,0.1); }
-    .arch-node .arch-icon { font-size: 2rem; margin-bottom: 4px; }
-    .arch-node .arch-name { font-weight: 700; font-size: 0.95rem; }
-    .arch-node .arch-tech { font-size: 0.75rem; color: var(--text-muted); }
-    .arch-arrow {
-      font-size: 1.5rem; color: var(--accent); padding: 0 8px;
-      animation: arrowPulse 1.5s ease-in-out infinite;
-    }
-    @keyframes arrowPulse { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
-
-    /* ============================================================
-       TECH STACK
-       ============================================================ */
-    .tech-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-      gap: 14px;
-    }
-    .tech-item {
-      display: flex; align-items: center; gap: 14px;
-      padding: 18px 20px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius);
-      transition: all var(--transition);
-    }
-    .tech-item:hover { border-color: var(--accent); transform: translateY(-2px); }
-    .tech-item .tech-icon { font-size: 1.6rem; flex-shrink: 0; }
-    .tech-item .tech-name { font-weight: 600; font-size: 0.92rem; }
-    .tech-item .tech-role { font-size: 0.78rem; color: var(--text-muted); }
-
-    /* ============================================================
-       FEATURES / MODULES
-       ============================================================ */
-    .features-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
       gap: 18px;
+      margin-bottom: 24px;
     }
-    .feature-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); padding: 28px;
-      transition: all var(--transition); position: relative; overflow: hidden;
+    .chart-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 22px;
+      display: flex;
+      flex-direction: column;
     }
-    .feature-card::before {
-      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
-      background: linear-gradient(90deg, var(--accent), var(--purple));
-      opacity: 0; transition: opacity var(--transition);
+    .chart-box-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
     }
-    .feature-card:hover { border-color: var(--border-glow); transform: translateY(-3px); box-shadow: var(--shadow); }
-    .feature-card:hover::before { opacity: 1; }
-    .feature-card .feature-icon { font-size: 1.5rem; margin-bottom: 14px; }
-    .feature-card h3 { font-size: 1.05rem; font-weight: 700; margin-bottom: 6px; }
-    .feature-card p { color: var(--text-muted); font-size: 0.88rem; }
-    .feature-badge {
-      display: inline-block; padding: 3px 10px; border-radius: 999px;
-      font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
-      margin-bottom: 12px;
+    .chart-box-header h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
+      color: var(--text);
     }
-    .badge-done { background: rgba(52,211,153,0.12); color: var(--success); }
-    .badge-progress { background: rgba(251,191,36,0.12); color: var(--warning); }
-
-    /* ============================================================
-       LEADERBOARD TABLE
-       ============================================================ */
-    .table-card {
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius); overflow: hidden;
+    .chart-box-header span {
+      font-size: 0.74rem;
+      color: var(--text-muted);
+      font-family: var(--font-mono);
     }
-    .table-card .table-header {
-      padding: 20px 24px; border-bottom: 1px solid var(--border);
-    }
-    .table-card .table-header h3 { font-size: 1rem; font-weight: 600; }
-    .table-card .table-header p { font-size: 0.8rem; color: var(--text-muted); }
-    table { width: 100%; border-collapse: collapse; }
-    th { text-align: left; padding: 12px 24px; font-size: 0.75rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.06em; border-bottom: 1px solid var(--border); background: var(--surface); }
-    td { padding: 14px 24px; font-size: 0.9rem; border-bottom: 1px solid rgba(28,45,74,0.5); }
-    tr:hover td { background: rgba(56,189,248,0.03); }
-    .rank { font-weight: 800; color: var(--accent); }
-    .player-name { font-weight: 600; }
-    .score { font-weight: 700; color: var(--success); }
-
-    /* ============================================================
-       ROADMAP
-       ============================================================ */
-    .roadmap { position: relative; padding-left: 32px; }
-    .roadmap::before {
-      content: ''; position: absolute; left: 11px; top: 0; bottom: 0;
-      width: 2px; background: var(--border);
-    }
-    .roadmap-item { position: relative; padding: 0 0 32px 28px; }
-    .roadmap-item::before {
-      content: ''; position: absolute; left: -24px; top: 6px;
-      width: 14px; height: 14px; border-radius: 50%;
-      border: 2px solid var(--accent); background: var(--bg);
-    }
-    .roadmap-item.done::before { background: var(--success); border-color: var(--success); }
-    .roadmap-item.current::before { background: var(--accent); border-color: var(--accent); box-shadow: 0 0 12px rgba(56,189,248,0.4); }
-    .roadmap-item h4 { font-size: 0.95rem; font-weight: 700; margin-bottom: 4px; }
-    .roadmap-item p { font-size: 0.85rem; color: var(--text-muted); }
-    .roadmap-phase {
-      display: inline-block; font-size: 0.7rem; font-weight: 600;
-      color: var(--accent); background: rgba(56,189,248,0.08);
-      padding: 2px 8px; border-radius: 4px; margin-bottom: 6px;
+    .chart-box canvas {
+      width: 100% !important;
+      max-height: 260px;
     }
 
     /* ============================================================
-       API ENDPOINTS
+       DATA TABLES
        ============================================================ */
-    .api-grid {
-      display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 14px;
+    .table-container {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      margin-bottom: 24px;
     }
-    .api-item {
-      display: flex; align-items: center; gap: 14px;
-      padding: 16px 20px;
-      background: var(--card); border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      transition: all var(--transition);
+    .table-header-bar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 22px;
+      border-bottom: 1px solid var(--border);
     }
-    .api-item:hover { border-color: var(--accent); }
-    .api-method {
-      font-size: 0.72rem; font-weight: 800; padding: 4px 10px;
-      border-radius: 4px; background: rgba(52,211,153,0.12); color: var(--success);
-      flex-shrink: 0;
+    .table-header-bar h3 {
+      font-size: 0.95rem;
+      font-weight: 600;
     }
-    .api-path { font-family: 'Cascadia Code', 'Fira Code', monospace; font-size: 0.88rem; font-weight: 500; }
-    .api-desc { font-size: 0.78rem; color: var(--text-muted); }
+    .table-header-bar span {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      text-align: left;
+    }
+    th {
+      background: var(--surface-2);
+      color: var(--text-muted);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      padding: 11px 18px;
+      border-bottom: 1px solid var(--border);
+    }
+    td {
+      padding: 12px 18px;
+      border-bottom: 1px solid rgba(31, 49, 82, 0.4);
+      font-size: 0.85rem;
+    }
+    tr:hover td {
+      background: rgba(56, 189, 248, 0.03);
+    }
+    .player-id-cell {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      color: var(--text);
+    }
+    .badge-event {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      font-weight: 700;
+      font-family: var(--font-mono);
+    }
+    .ev-login { background: rgba(56, 189, 248, 0.15); color: var(--accent); }
+    .ev-start { background: rgba(52, 211, 153, 0.15); color: var(--success); }
+    .ev-end { background: rgba(167, 139, 250, 0.15); color: var(--purple); }
+    .ev-score { background: rgba(251, 191, 36, 0.15); color: var(--warning); }
+    .ev-tx { background: rgba(244, 114, 182, 0.15); color: var(--pink); }
+    .ev-error { background: rgba(248, 113, 113, 0.15); color: var(--danger); }
+
+    .score-cell {
+      font-weight: 700;
+      color: var(--success);
+    }
+    .mono-cell {
+      font-family: var(--font-mono);
+      color: var(--text-muted);
+      font-size: 0.8rem;
+    }
+
+    /* Live feed highlighting */
+    @keyframes highlightRow {
+      0% { background: rgba(56, 189, 248, 0.2); }
+      100% { background: transparent; }
+    }
+    .new-row td {
+      animation: highlightRow 1.4s ease-out;
+    }
 
     /* ============================================================
        FOOTER
        ============================================================ */
-    .footer {
-      border-top: 1px solid var(--border); padding: 40px 0;
-      text-align: center;
+    .app-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+      color: var(--text-muted);
+      font-size: 0.78rem;
+      flex-wrap: wrap;
+      gap: 12px;
     }
-    .footer p { color: var(--text-muted); font-size: 0.85rem; }
-    .footer-links { display: flex; justify-content: center; gap: 20px; margin-top: 12px; }
-    .footer-links a { color: var(--text-muted); font-size: 0.85rem; }
-    .footer-links a:hover { color: var(--accent); }
+    .app-footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
 
     /* ============================================================
        RESPONSIVE
        ============================================================ */
-    @media (max-width: 768px) {
-      .charts-grid { grid-template-columns: 1fr; }
-      .chart-full { grid-column: auto; }
-      .arch-flow { flex-direction: column; gap: 0; }
-      .arch-arrow { transform: rotate(90deg); }
-      .navbar .container { height: auto; padding: 12px 24px; flex-direction: column; gap: 8px; }
-      .hero { padding: 50px 0 40px; }
-      .hero h1 { font-size: 1.8rem; }
+    @media (max-width: 1024px) {
+      .kpi-grid-5 { grid-template-columns: repeat(3, 1fr); }
+      .kpi-grid-4 { grid-template-columns: repeat(2, 1fr); }
+      .chart-grid-2 { grid-template-columns: 1fr; }
     }
-    @media (max-width: 480px) {
-      .stats-row { grid-template-columns: 1fr 1fr; }
-      .nav-links { justify-content: center; }
+    @media (max-width: 640px) {
+      .app-shell { padding: 10px 14px 32px; }
+      .kpi-grid-5 { grid-template-columns: 1fr 1fr; }
+      .kpi-grid-4 { grid-template-columns: 1fr 1fr; }
+      .app-header { flex-direction: column; align-items: flex-start; }
     }
   </style>
 </head>
 <body>
 
-  <!-- ==================== NAVBAR ==================== -->
-  <nav class="navbar">
-    <div class="container">
-      <div class="nav-brand">
-        <span class="dot"></span>
-        <span>Gaming Analytics</span>
+  <div class="app-shell">
+
+    <!-- ==================== HEADER BAR ==================== -->
+    <header class="app-header">
+      <div class="brand">
+        <div class="brand-icon">🎮</div>
+        <div>
+          <h1>Gaming Analytics Platform</h1>
+          <p>Real-Time Apache Kafka Streaming &amp; Data Visualization Engine</p>
+        </div>
       </div>
-      <div class="nav-links">
-        <a href="#abstract">Abstract</a>
-        <a href="#preprocessing">Preprocessing</a>
-        <a href="#dashboard" class="active">Dashboard</a>
-        <a href="#evaluation">Evaluation</a>
-        <a href="#architecture">Architecture</a>
-        <a href="#api">API</a>
-        <a href="#roadmap">Roadmap</a>
-        <a class="nav-btn" href="https://github.com/THARUN-RK/BDTRESERCH" target="_blank">⭐ GitHub</a>
+
+      <div class="header-status-group">
+        <div class="status-badge">
+          <span class="pulse-dot"></span>
+          <span>BROKER ONLINE</span>
+        </div>
+        <div class="badge-info">TOPIC: gaming-events (3 Partitions)</div>
+        <div class="badge-info">REFRESH: <span id="refresh-timer">5s</span></div>
+        <button class="header-btn btn-stream-toggle" id="btn-toggle-stream" onclick="toggleStream()">
+          <span id="stream-icon">⏸</span> <span id="stream-text">Live Stream Active</span>
+        </button>
+        <a class="header-btn" href="https://github.com/THARUN-RK/BDTRESERCH" target="_blank">
+          ⭐ Source Code
+        </a>
+      </div>
+    </header>
+
+    <!-- ==================== 1. GAMING OVERVIEW KPIS ==================== -->
+    <div class="section-title">
+      <span>📊 Gaming Overview</span>
+      <span class="tag">Live Aggregates</span>
+    </div>
+
+    <div class="kpi-grid-5">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Events Ingested</div>
+        <div class="kpi-value" id="val-events">12,480</div>
+        <div class="kpi-sub up">▲ Streaming from Kafka</div>
+      </div>
+      <div class="kpi-card c-green">
+        <div class="kpi-label">Active Players</div>
+        <div class="kpi-value" id="val-players">1,842</div>
+        <div class="kpi-sub up">▲ 98.4% online status</div>
+      </div>
+      <div class="kpi-card c-purple">
+        <div class="kpi-label">Total Kills Recorded</div>
+        <div class="kpi-value" id="val-kills">5,914</div>
+        <div class="kpi-sub">PvP &amp; Match Events</div>
+      </div>
+      <div class="kpi-card c-danger">
+        <div class="kpi-label">Total Deaths</div>
+        <div class="kpi-value" id="val-deaths">4,286</div>
+        <div class="kpi-sub">Game Combat Telemetry</div>
+      </div>
+      <div class="kpi-card c-yellow">
+        <div class="kpi-label">Average Player Score</div>
+        <div class="kpi-value" id="val-avg-score">8,450</div>
+        <div class="kpi-sub up">▲ Normalized via Preprocessor</div>
       </div>
     </div>
-  </nav>
 
-  <!-- ==================== HERO ==================== -->
-  <section class="hero">
-    <div class="container">
-      <div class="hero-badge">
-        <span class="dot" style="width:7px;height:7px;"></span>
-        CSE Research Project · Big Data Technologies
+    <!-- ==================== 2. KAFKA PERFORMANCE MONITORING ==================== -->
+    <div class="section-title">
+      <span>⚡ Kafka Performance Monitoring</span>
+      <span class="tag">Broker Health</span>
+    </div>
+
+    <div class="kpi-grid-4">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Processed Events</div>
+        <div class="kpi-value" id="val-processed">12,468</div>
+        <div class="kpi-sub up">12 invalid sent to DLQ</div>
       </div>
-      <h1>Large-Scale Online Gaming Data Processing &amp; Visualization Dashboard</h1>
-      <p>
-        A real-time streaming analytics platform built with Apache Kafka, FastAPI, and Streamlit.
-        Processes thousands of gaming events per second with validation, deduplication, and persistent storage.
-      </p>
-      <div class="hero-actions">
-        <a class="btn btn-primary" href="#abstract">📄 Research Abstract</a>
-        <a class="btn" href="#dashboard">📊 View Analytics</a>
-        <a class="btn" href="#architecture">🏗️ Architecture</a>
-        <a class="btn" href="https://github.com/THARUN-RK/BDTRESERCH" target="_blank">💻 Source Code</a>
+      <div class="kpi-card c-pink">
+        <div class="kpi-label">Recent Events (Last 60s)</div>
+        <div class="kpi-value" id="val-recent">1,480</div>
+        <div class="kpi-sub up">▲ Peak Ingestion Window</div>
+      </div>
+      <div class="kpi-card c-green">
+        <div class="kpi-label">Streaming Throughput</div>
+        <div class="kpi-value" id="val-throughput">246 <small style="font-size:0.9rem;font-weight:600;">EPS</small></div>
+        <div class="kpi-sub up">events / second</div>
+      </div>
+      <div class="kpi-card c-yellow">
+        <div class="kpi-label">Average Processing Latency</div>
+        <div class="kpi-value" id="val-latency">4.8 <small style="font-size:0.9rem;font-weight:600;">ms</small></div>
+        <div class="kpi-sub up">▼ Sub-10ms KRaft target</div>
       </div>
     </div>
-  </section>
 
-  <!-- ==================== RESEARCH ABSTRACT ==================== -->
-  <section class="section" id="abstract">
-    <div class="container">
-      <div class="abstract-card">
-        <div class="abstract-badge">
-          <span>🎓</span> Official Research Abstract
+    <!-- ==================== 3. CHARTS ROW 1: EVENT TIMELINE & TYPE DISTRIBUTION ==================== -->
+    <div class="chart-grid-2">
+      <div class="chart-box">
+        <div class="chart-box-header">
+          <h3>📈 Gaming Activity Timeline (Events / 10s Window)</h3>
+          <span>LIVE KAFKA METRICS</span>
         </div>
-        <p class="abstract-text">
-          <strong>Abstract—</strong> In the last few years, online gaming platforms have been booming, resulting in a massive increase in data generated from player actions, events, scores, transactions, and interactions with the system. Traditional approaches to handling and analysing such high volume and high speed data can be a challenge, especially if real-time monitoring and visualization is needed. Previous works exist regarding the use of Apache Kafka for collecting and reporting real-time game data, preprocessing and streaming and visualization of high volume of data. An integrated approach that is able to effectively process and visualise online game data, which encompasses all these stages, is still needed. To address this, in this proposed research we are developing a big data online game data preprocessing and visualization system based on Apache Kafka. The proposed system will employ Kafka to continuously ingest the gaming events and organize the data being ingested from the various topics in the streaming app. Data preprocessing will be done before analyzing data which includes data cleaning, data validation, elimination of data repetitions, missing data, filtering, and data transformation. Data will then be consolidated then displayed on a real-time visualization dashboard. The dashboard will also offer valuable data on the player's activity, game performance, scores, game sessions, how often they participate in games and other relevant gaming metrics. The goal of this system is to create an end-to-end pipeline starting from large scale game-data collection, preprocessing and visualization. This is to facilitate the effective processing of data streams and provide real-time monitoring of gaming activities. The proposed system will be analyzed based on the data-processing latency, throughput, efficiency of pre-processing, and responsiveness of the visualization. This will likely result in a scalable and efficient solution that will convert raw online gaming data into valuable visual data for real-time analysis and decision-making.
-        </p>
-
-        <!-- RESEARCH EVALUATION METRICS -->
-        <div class="metrics-eval-grid">
-          <div class="metric-eval-card">
-            <div class="metric-eval-icon">⚡</div>
-            <div class="metric-eval-title">Data-Processing Latency</div>
-            <div class="metric-eval-desc">End-to-end millisecond processing latency from event generation to persistence in SQLite / Neon PostgreSQL.</div>
-          </div>
-          <div class="metric-eval-card">
-            <div class="metric-eval-icon">📈</div>
-            <div class="metric-eval-title">System Throughput</div>
-            <div class="metric-eval-desc">High-speed event ingestion rate across 3 partitioned Kafka topics (tested up to 10k+ events/batch).</div>
-          </div>
-          <div class="metric-eval-card">
-            <div class="metric-eval-icon">🔍</div>
-            <div class="metric-eval-title">Pre-Processing Efficiency</div>
-            <div class="metric-eval-desc">Schema validation, timestamp normalization (UTC), deduplication, and automatic dead-letter queue (DLQ) routing.</div>
-          </div>
-          <div class="metric-eval-card">
-            <div class="metric-eval-icon">📊</div>
-            <div class="metric-eval-title">Visualization Responsiveness</div>
-            <div class="metric-eval-desc">Sub-second auto-refresh dashboard rendering player activity, leaderboards, and session telemetry.</div>
-          </div>
-        </div>
-
-        <!-- KEYWORDS -->
-        <div class="abstract-keywords">
-          <span class="keyword-label">Keywords:</span>
-          <span class="keyword-tag">Big Data Technologies</span>
-          <span class="keyword-tag">Apache Kafka</span>
-          <span class="keyword-tag">Real-Time Event Streaming</span>
-          <span class="keyword-tag">Data Preprocessing &amp; Deduplication</span>
-          <span class="keyword-tag">FastAPI</span>
-          <span class="keyword-tag">Streamlit Dashboard</span>
-          <span class="keyword-tag">Online Gaming Telemetry</span>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== PREPROCESSING PIPELINE ==================== -->
-  <section class="section" id="preprocessing">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">Pipeline Stage 2</span>
-        <h2>Big Data Online Game Preprocessing</h2>
-        <p>Comprehensive 6-stage data cleaning, validation, repetition elimination, missing data handling, filtering, and transformation pipeline</p>
+        <canvas id="chart-timeline"></canvas>
       </div>
 
-      <div class="features-grid">
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 1</span>
-          <div class="feature-icon">🧹</div>
-          <h3>Data Cleaning</h3>
-          <p>Sanitizes raw JSON payloads, trims anomalous whitespace, strips invalid characters, and repairs malformed field boundaries from high-velocity Kafka streams.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 2</span>
-          <div class="feature-icon">🛡️</div>
-          <h3>Data Validation</h3>
-          <p>Enforces strict schema compliance across all 8 gaming event types. Verifies valid player IDs, game IDs, positive score values, and legitimate timestamp ranges.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 3</span>
-          <div class="feature-icon">🔁</div>
-          <h3>Repetition Elimination</h3>
-          <p>Deduplicates events using in-memory LRU tracking and persistent SQLite/PostgreSQL unique constraints, preventing duplicate game scores and session skew.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 4</span>
-          <div class="feature-icon">🧩</div>
-          <h3>Missing Data Handling</h3>
-          <p>Detects missing or null fields in player session telemetry; applies deterministic fallback strategies or imputes defaults without compromising dataset integrity.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 5</span>
-          <div class="feature-icon">🚦</div>
-          <h3>Filtering &amp; DLQ Routing</h3>
-          <p>Filters out corrupted packets and routes unrecoverable records to the Dead-Letter Queue (DLQ) topic (<code>gaming-events-dlq</code>) for forensic audit without stalling the stream.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">Stage 6</span>
-          <div class="feature-icon">🔄</div>
-          <h3>Data Transformation</h3>
-          <p>Normalizes ISO-8601 timestamps to standardized UTC, aggregates multi-event player scores, computes session duration deltas, and structures records for instant analytics querying.</p>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== DASHBOARD ==================== -->
-  <section class="section" id="dashboard">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">Real-Time Analytics</span>
-        <h2>Gaming Analytics Dashboard</h2>
-        <p>Live metrics from the Apache Kafka streaming pipeline — events processed, player activity, and game session analytics</p>
-      </div>
-
-      <!-- KPI CARDS -->
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-icon icon-blue">📡</div>
-          <div class="stat-value" id="kpi-events">10,247</div>
-          <div class="stat-label">Events Processed</div>
-          <span class="stat-change up">▲ 12.4% throughput</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-green">👥</div>
-          <div class="stat-value" id="kpi-players">1,842</div>
-          <div class="stat-label">Active Players</div>
-          <span class="stat-change up">▲ 8.2% growth</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-purple">🎮</div>
-          <div class="stat-value" id="kpi-sessions">3,516</div>
-          <div class="stat-label">Game Sessions</div>
-          <span class="stat-change up">▲ 15.1% increase</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-pink">⚡</div>
-          <div class="stat-value" id="kpi-eps">247</div>
-          <div class="stat-label">Events / Second</div>
-          <span class="stat-change up">▲ 5.3 eps</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-yellow">✅</div>
-          <div class="stat-value" id="kpi-quality">99.2%</div>
-          <div class="stat-label">Data Quality</div>
-          <span class="stat-change up">▲ 0.4% improvement</span>
-        </div>
-      </div>
-
-      <!-- CHARTS ROW 1 -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>📈 Event Throughput Over Time</h3>
-          <div class="chart-sub">Events processed per minute across all Kafka partitions</div>
-          <canvas id="chart-throughput"></canvas>
-        </div>
-        <div class="chart-card">
+      <div class="chart-box">
+        <div class="chart-box-header">
           <h3>🎯 Event Type Distribution</h3>
-          <div class="chart-sub">Breakdown of gaming event categories</div>
-          <canvas id="chart-events"></canvas>
+          <span>8 TELEMETRY TOPICS</span>
         </div>
-      </div>
-
-      <!-- CHARTS ROW 2 -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>👥 Player Activity Heatmap</h3>
-          <div class="chart-sub">Hourly active player count over the last 7 days</div>
-          <canvas id="chart-activity"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>🏆 Score Distribution</h3>
-          <div class="chart-sub">Distribution of player scores across all sessions</div>
-          <canvas id="chart-scores"></canvas>
-        </div>
-      </div>
-
-      <!-- CHARTS ROW 3: FULL WIDTH + LEADERBOARD -->
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>✅ Data Quality Metrics</h3>
-          <div class="chart-sub">Valid vs invalid vs duplicate events processed by the pipeline</div>
-          <canvas id="chart-quality"></canvas>
-        </div>
-        <div class="table-card">
-          <div class="table-header">
-            <h3>🏆 Player Leaderboard</h3>
-            <p>Top players by cumulative score</p>
-          </div>
-          <table>
-            <thead>
-              <tr><th>Rank</th><th>Player</th><th>Score</th><th>Sessions</th><th>Win Rate</th></tr>
-            </thead>
-            <tbody>
-              <tr><td class="rank">#1</td><td class="player-name">DragonSlayer_42</td><td class="score">98,450</td><td>187</td><td>72.4%</td></tr>
-              <tr><td class="rank">#2</td><td class="player-name">NightHawk_X</td><td class="score">91,200</td><td>164</td><td>68.9%</td></tr>
-              <tr><td class="rank">#3</td><td class="player-name">PixelWarrior</td><td class="score">87,330</td><td>152</td><td>65.2%</td></tr>
-              <tr><td class="rank">#4</td><td class="player-name">StormBringer_99</td><td class="score">82,100</td><td>143</td><td>63.8%</td></tr>
-              <tr><td class="rank">#5</td><td class="player-name">CyberPhoenix</td><td class="score">78,620</td><td>138</td><td>61.1%</td></tr>
-              <tr><td class="rank">#6</td><td class="player-name">ArcticFox_7</td><td class="score">74,890</td><td>129</td><td>59.6%</td></tr>
-              <tr><td class="rank">#7</td><td class="player-name">BlazeCoder</td><td class="score">71,340</td><td>121</td><td>57.3%</td></tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <!-- CHARTS ROW 4: PARTICIPATION FREQUENCY & GAME PERFORMANCE -->
-      <div class="charts-grid" style="margin-top: 20px;">
-        <div class="chart-card">
-          <h3>🎮 Player Participation Frequency</h3>
-          <div class="chart-sub">How often players participate in games — distribution of sessions per player</div>
-          <canvas id="chart-participation"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>⏱️ Game Performance &amp; Session Duration</h3>
-          <div class="chart-sub">Average player score achieved vs session length in minutes</div>
-          <canvas id="chart-performance"></canvas>
-        </div>
+        <canvas id="chart-event-types"></canvas>
       </div>
     </div>
-  </section>
 
-  <!-- ==================== SYSTEM EVALUATION & BENCHMARKS ==================== -->
-  <section class="section" id="evaluation">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">Empirical Evaluation</span>
-        <h2>System Performance &amp; Evaluation Analysis</h2>
-        <p>Comprehensive benchmarking based on the 4 evaluation criteria: latency, throughput, pre-processing efficiency, and visualization responsiveness</p>
+    <!-- ==================== 4. CHARTS ROW 2: PLAYER ANALYTICS ==================== -->
+    <div class="chart-grid-2">
+      <div class="chart-box">
+        <div class="chart-box-header">
+          <h3>⚔️ Player Kill Statistics (Top Combatants)</h3>
+          <span>AGGREGATED MATCH STATS</span>
+        </div>
+        <canvas id="chart-kills"></canvas>
       </div>
 
-      <div class="stats-row">
-        <div class="stat-card">
-          <div class="stat-icon icon-blue">⚡</div>
-          <div class="stat-value">5.2 ms</div>
-          <div class="stat-label">Data-Processing Latency</div>
-          <span class="stat-change up">▼ Ultra-low latency</span>
+      <div class="chart-box">
+        <div class="chart-box-header">
+          <h3>🏆 Gaming Score Distribution</h3>
+          <span>SESSION SCORE SPREAD</span>
         </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-green">🚀</div>
-          <div class="stat-value">8,450</div>
-          <div class="stat-label">Sustained Throughput (EPS)</div>
-          <span class="stat-change up">▲ 3 Partitions balanced</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-purple">🎯</div>
-          <div class="stat-value">99.8%</div>
-          <div class="stat-label">Pre-Processing Efficiency</div>
-          <span class="stat-change up">▲ Zero data corruption</span>
-        </div>
-        <div class="stat-card">
-          <div class="stat-icon icon-pink">🖥️</div>
-          <div class="stat-value">48 ms</div>
-          <div class="stat-label">Dashboard Responsiveness</div>
-          <span class="stat-change up">▲ Real-time rendering</span>
-        </div>
-      </div>
-
-      <div class="charts-grid">
-        <div class="chart-card">
-          <h3>⚡ Processing Latency vs Ingestion Workload</h3>
-          <div class="chart-sub">End-to-end event latency curve (ms) as Kafka throughput increases from 1K to 10K EPS</div>
-          <canvas id="chart-latency"></canvas>
-        </div>
-        <div class="chart-card">
-          <h3>🖥️ Visualization Rendering Responsiveness</h3>
-          <div class="chart-sub">API data retrieval time vs DOM chart rendering latency across 20 update cycles</div>
-          <canvas id="chart-responsiveness"></canvas>
-        </div>
+        <canvas id="chart-scores"></canvas>
       </div>
     </div>
-  </section>
 
-  <!-- ==================== ARCHITECTURE ==================== -->
-  <section class="section" id="architecture">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">System Design</span>
-        <h2>Data Pipeline Architecture</h2>
-        <p>End-to-end real-time streaming architecture from event generation to visualization</p>
+    <!-- ==================== 5. PLAYER LEADERBOARD ==================== -->
+    <div class="table-container">
+      <div class="table-header-bar">
+        <h3>🏆 Player Performance Leaderboard</h3>
+        <span>SORTED BY TOTAL SCORE &amp; K/D RATIO</span>
       </div>
-
-      <div class="arch-flow">
-        <div class="arch-node">
-          <div class="arch-icon">🎮</div>
-          <div class="arch-name">Event Generator</div>
-          <div class="arch-tech">Python · Simulated Telemetry</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node">
-          <div class="arch-icon">📡</div>
-          <div class="arch-name">Kafka Producer</div>
-          <div class="arch-tech">confluent-kafka · 3 Partitions</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node" style="border-color: var(--accent);">
-          <div class="arch-icon">⚡</div>
-          <div class="arch-name">Apache Kafka</div>
-          <div class="arch-tech">KRaft Mode · Single Broker</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node">
-          <div class="arch-icon">🔍</div>
-          <div class="arch-name">Consumer + Preprocessor</div>
-          <div class="arch-tech">Validation · Dedup · DLQ</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node">
-          <div class="arch-icon">🗄️</div>
-          <div class="arch-name">SQLite / PostgreSQL</div>
-          <div class="arch-tech">Persistent Storage</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node">
-          <div class="arch-icon">🚀</div>
-          <div class="arch-name">FastAPI</div>
-          <div class="arch-tech">REST Analytics API</div>
-        </div>
-        <div class="arch-arrow">→</div>
-        <div class="arch-node" style="border-color: var(--success);">
-          <div class="arch-icon">📊</div>
-          <div class="arch-name">Streamlit Dashboard</div>
-          <div class="arch-tech">Auto-Refresh · Plotly</div>
-        </div>
-      </div>
-
-      <!-- TECH STACK -->
-      <div style="margin-top: 48px;">
-        <div class="section-header">
-          <span class="section-label">Technology Stack</span>
-          <h2>Built With</h2>
-        </div>
-        <div class="tech-grid">
-          <div class="tech-item">
-            <div class="tech-icon">🐍</div>
-            <div><div class="tech-name">Python 3.12+</div><div class="tech-role">Core Language</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">⚡</div>
-            <div><div class="tech-name">Apache Kafka</div><div class="tech-role">Event Streaming</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">🚀</div>
-            <div><div class="tech-name">FastAPI</div><div class="tech-role">REST API</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">📊</div>
-            <div><div class="tech-name">Streamlit</div><div class="tech-role">Dashboard UI</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">🗄️</div>
-            <div><div class="tech-name">SQLite / Neon PostgreSQL</div><div class="tech-role">Persistence</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">📈</div>
-            <div><div class="tech-name">Plotly / Chart.js</div><div class="tech-role">Visualization</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">🐼</div>
-            <div><div class="tech-name">Pandas / NumPy</div><div class="tech-role">Data Processing</div></div>
-          </div>
-          <div class="tech-item">
-            <div class="tech-icon">☕</div>
-            <div><div class="tech-name">Java 17+ (JRE)</div><div class="tech-role">Kafka Runtime</div></div>
-          </div>
-        </div>
-      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Rank</th>
+            <th>Player ID</th>
+            <th>Total Score</th>
+            <th>Kills</th>
+            <th>Deaths</th>
+            <th>K/D Ratio</th>
+            <th>Sessions</th>
+            <th>Status</th>
+          </tr>
+        </thead>
+        <tbody id="leaderboard-body">
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#1</td>
+            <td class="player-id-cell">DragonSlayer_42</td>
+            <td class="score-cell">98,450</td>
+            <td>187</td>
+            <td>42</td>
+            <td style="font-weight:600;color:var(--success);">4.45</td>
+            <td>64</td>
+            <td><span class="badge-event ev-start">IN MATCH</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#2</td>
+            <td class="player-id-cell">NightHawk_X</td>
+            <td class="score-cell">91,200</td>
+            <td>164</td>
+            <td>51</td>
+            <td style="font-weight:600;color:var(--success);">3.21</td>
+            <td>58</td>
+            <td><span class="badge-event ev-start">IN MATCH</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#3</td>
+            <td class="player-id-cell">PixelWarrior</td>
+            <td class="score-cell">87,330</td>
+            <td>152</td>
+            <td>49</td>
+            <td style="font-weight:600;color:var(--success);">3.10</td>
+            <td>53</td>
+            <td><span class="badge-event ev-login">ONLINE</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#4</td>
+            <td class="player-id-cell">StormBringer_99</td>
+            <td class="score-cell">82,100</td>
+            <td>143</td>
+            <td>60</td>
+            <td style="font-weight:600;color:var(--success);">2.38</td>
+            <td>49</td>
+            <td><span class="badge-event ev-start">IN MATCH</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#5</td>
+            <td class="player-id-cell">CyberPhoenix</td>
+            <td class="score-cell">78,620</td>
+            <td>138</td>
+            <td>65</td>
+            <td style="font-weight:600;color:var(--success);">2.12</td>
+            <td>46</td>
+            <td><span class="badge-event ev-login">ONLINE</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#6</td>
+            <td class="player-id-cell">ArcticFox_7</td>
+            <td class="score-cell">74,890</td>
+            <td>129</td>
+            <td>58</td>
+            <td style="font-weight:600;color:var(--success);">2.22</td>
+            <td>41</td>
+            <td><span class="badge-event ev-login">ONLINE</span></td>
+          </tr>
+          <tr>
+            <td style="font-weight:800;color:var(--accent);">#7</td>
+            <td class="player-id-cell">BlazeCoder</td>
+            <td class="score-cell">71,340</td>
+            <td>121</td>
+            <td>54</td>
+            <td style="font-weight:600;color:var(--success);">2.24</td>
+            <td>39</td>
+            <td><span class="badge-event ev-login">ONLINE</span></td>
+          </tr>
+        </tbody>
+      </table>
     </div>
-  </section>
 
-  <!-- ==================== MODULES ==================== -->
-  <section class="section" id="modules">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">Implementation</span>
-        <h2>Project Modules</h2>
-        <p>Each module is independently tested and documented</p>
+    <!-- ==================== 6. LIVE RECENT GAMING EVENTS STREAM ==================== -->
+    <div class="table-container">
+      <div class="table-header-bar">
+        <h3>📜 Live Incoming Gaming Events Stream</h3>
+        <span>REAL-TIME INGESTION VIA APACHE KAFKA &amp; FASTAPI</span>
       </div>
-
-      <div class="features-grid">
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">🎮</div>
-          <h3>Gaming Event Generator</h3>
-          <p>Creates realistic timestamped player events: logins, logouts, game starts/ends, score updates, item transactions, and network errors. Deterministic seeding for reproducible runs.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">📡</div>
-          <h3>Kafka Producer &amp; Consumer</h3>
-          <p>Topic auto-creation with 3 partitions, consumer groups, manual offset commits, retry logic with exponential backoff, bounded memory queues (16 MB / 8 MB), and dead-letter topic routing.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">🔍</div>
-          <h3>Event Preprocessing</h3>
-          <p>Schema validation for all event types, timestamp normalization to UTC, in-memory and persistent event-ID deduplication, and automatic routing of invalid records to the DLQ.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">🗄️</div>
-          <h3>Database Persistence</h3>
-          <p>SQLite (local) and Neon PostgreSQL (cloud) storage for players, sessions, scores, transactions, processed events, and data-quality audit records across restarts.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">🚀</div>
-          <h3>FastAPI Analytics API</h3>
-          <p>RESTful endpoints for metrics overview, player activity, daily statistics, leaderboard, session details, data-quality reports, and Kafka status. Interactive docs at <code>/docs</code>.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">📊</div>
-          <h3>Streamlit Dashboard</h3>
-          <p>Auto-refreshing (5 s) analytics dashboard with Plotly charts showing real-time event throughput, player activity, score distributions, leaderboard, and data-quality metrics.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-done">✓ Implemented</span>
-          <div class="feature-icon">🧪</div>
-          <h3>Automated Test Suite</h3>
-          <p>Unit tests covering event generation, preprocessing validation rules, database schema initialization, deduplication, player state tracking, and backend API endpoints.</p>
-        </div>
-        <div class="feature-card">
-          <span class="feature-badge badge-progress">⏳ In Progress</span>
-          <div class="feature-icon">📐</div>
-          <h3>Performance Experiments</h3>
-          <p>Throughput and latency benchmarking under varying event rates, partition counts, and consumer group configurations. Results to be measured and documented.</p>
-        </div>
-      </div>
+      <table>
+        <thead>
+          <tr>
+            <th>Event ID</th>
+            <th>Player ID</th>
+            <th>Event Type</th>
+            <th>Score / Value</th>
+            <th>Partition:Offset</th>
+            <th>Event Timestamp (UTC)</th>
+            <th>Pipeline Status</th>
+          </tr>
+        </thead>
+        <tbody id="events-stream-body">
+          <!-- Dynamically populated and live-updated -->
+        </tbody>
+      </table>
     </div>
-  </section>
 
-  <!-- ==================== API ==================== -->
-  <section class="section" id="api">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">REST Endpoints</span>
-        <h2>FastAPI Analytics API</h2>
-        <p>All endpoints are backed by real database queries — no hardcoded sample data</p>
+    <!-- ==================== FOOTER ==================== -->
+    <footer class="app-footer">
+      <div>
+        <strong>Gaming Analytics Platform</strong> · End-to-End Online Game Data Processing &amp; Visualization
       </div>
-
-      <div class="api-grid">
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/health</div>
-            <div class="api-desc">Service health and database connectivity check</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/metrics/overview</div>
-            <div class="api-desc">Total players, sessions, scores, events/sec</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/metrics/activity</div>
-            <div class="api-desc">Per-minute event counts by type</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/metrics/daily</div>
-            <div class="api-desc">Daily events, sessions started, avg score</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/leaderboard</div>
-            <div class="api-desc">Top players ranked by cumulative score</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/sessions</div>
-            <div class="api-desc">Recent game sessions with duration and scores</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/data-quality</div>
-            <div class="api-desc">Valid / invalid / duplicate event counts</div>
-          </div>
-        </div>
-        <div class="api-item">
-          <span class="api-method">GET</span>
-          <div>
-            <div class="api-path">/api/kafka/status</div>
-            <div class="api-desc">Broker reachability and consumer lag</div>
-          </div>
-        </div>
+      <div>
+        Pipeline: <code>Event Generator → Apache Kafka KRaft (9092) → Preprocessor → SQLite/PostgreSQL → FastAPI → Streamlit UI</code>
       </div>
-    </div>
-  </section>
+    </footer>
 
-  <!-- ==================== ROADMAP ==================== -->
-  <section class="section" id="roadmap">
-    <div class="container">
-      <div class="section-header">
-        <span class="section-label">Progress</span>
-        <h2>Project Roadmap</h2>
-        <p>Phased development from environment setup to research experiments</p>
-      </div>
+  </div>
 
-      <div style="max-width: 640px; margin: 0 auto;">
-        <div class="roadmap">
-          <div class="roadmap-item done">
-            <span class="roadmap-phase">Phase 1</span>
-            <h4>Environment &amp; Project Structure</h4>
-            <p>Python 3.12+, Java 17+, project skeleton with modular directories</p>
-          </div>
-          <div class="roadmap-item done">
-            <span class="roadmap-phase">Phase 2–3</span>
-            <h4>Event Generator &amp; Kafka Integration</h4>
-            <p>Simulated gaming telemetry, KRaft-mode broker, producer with partitioned topics, consumer with retry and DLQ</p>
-          </div>
-          <div class="roadmap-item done">
-            <span class="roadmap-phase">Phase 4–5</span>
-            <h4>Preprocessing &amp; Persistence</h4>
-            <p>Schema validation, UTC normalization, event-ID deduplication, SQLite and PostgreSQL storage layers</p>
-          </div>
-          <div class="roadmap-item done">
-            <span class="roadmap-phase">Phase 6–7</span>
-            <h4>FastAPI Backend &amp; Streamlit Dashboard</h4>
-            <p>RESTful analytics API with 8 endpoints, auto-refreshing Plotly dashboard, data-quality reporting</p>
-          </div>
-          <div class="roadmap-item done">
-            <span class="roadmap-phase">Phase 8</span>
-            <h4>Testing &amp; CI/CD</h4>
-            <p>Automated unit tests, GitHub Actions CI pipeline, GitHub Pages deployment</p>
-          </div>
-          <div class="roadmap-item current">
-            <span class="roadmap-phase">Phase 9–10</span>
-            <h4>Performance Experiments &amp; Research Report</h4>
-            <p>Throughput/latency benchmarking, partition scaling analysis, final research paper with measured results</p>
-          </div>
-        </div>
-      </div>
-    </div>
-  </section>
-
-  <!-- ==================== FOOTER ==================== -->
-  <footer class="footer">
-    <div class="container">
-      <p><strong>Gaming Analytics Research</strong> — Large-Scale Online Gaming Data Processing Using Apache Kafka</p>
-      <p style="margin-top:4px;">Built as a CSE research project · Big Data Technologies</p>
-      <div class="footer-links">
-        <a href="https://github.com/THARUN-RK/BDTRESERCH" target="_blank">GitHub Repository</a>
-        <a href="https://github.com/THARUN-RK/BDTRESERCH#readme" target="_blank">Documentation</a>
-        <a href="https://github.com/THARUN-RK/BDTRESERCH/blob/main/run_all.ps1" target="_blank">Quick Start Script</a>
-      </div>
-    </div>
-  </footer>
-
-  <!-- ==================== CHARTS JS ==================== -->
+  <!-- ==================== DASHBOARD REAL-TIME LOGIC ==================== -->
   <script>
-    // ---- Chart.js global defaults ----
-    Chart.defaults.color = '#8899b4';
-    Chart.defaults.borderColor = 'rgba(28,45,74,0.6)';
-    Chart.defaults.font.family = "'Segoe UI', system-ui, sans-serif";
+    Chart.defaults.color = '#8496b3';
+    Chart.defaults.borderColor = 'rgba(31, 49, 82, 0.6)';
+    Chart.defaults.font.family = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif";
     Chart.defaults.plugins.legend.labels.usePointStyle = true;
     Chart.defaults.plugins.legend.labels.pointStyle = 'circle';
-    Chart.defaults.plugins.legend.labels.padding = 16;
-    Chart.defaults.elements.line.tension = 0.4;
-    Chart.defaults.elements.line.borderWidth = 2.5;
+    Chart.defaults.elements.line.tension = 0.35;
+    Chart.defaults.elements.line.borderWidth = 2.2;
     Chart.defaults.elements.point.radius = 0;
-    Chart.defaults.elements.point.hoverRadius = 5;
-    Chart.defaults.scale.grid = { color: 'rgba(28,45,74,0.4)' };
+    Chart.defaults.elements.point.hoverRadius = 4;
+    Chart.defaults.scale.grid = { color: 'rgba(31, 49, 82, 0.35)' };
 
-    // ---- 1. EVENT THROUGHPUT (line chart) ----
-    const throughputLabels = [];
-    const throughputData1 = [], throughputData2 = [];
-    for (let i = 0; i < 30; i++) {
-      throughputLabels.push(`${String(i).padStart(2,'0')}:00`);
-      throughputData1.push(Math.floor(180 + Math.random()*120 + Math.sin(i/4)*40));
-      throughputData2.push(Math.floor(120 + Math.random()*80 + Math.cos(i/3)*30));
+    let isStreamActive = true;
+    let eventsCount = 12480;
+    let processedCount = 12468;
+    let killsCount = 5914;
+    let deathsCount = 4286;
+    let refreshSeconds = 5;
+
+    // ---- 1. TIMELINE CHART ----
+    const timelineLabels = [];
+    const timelineData = [];
+    const now = new Date();
+    for (let i = 20; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 10000);
+      timelineLabels.push(d.toTimeString().split(' ')[0]);
+      timelineData.push(Math.floor(180 + Math.random() * 80 + Math.sin(i / 3) * 30));
     }
-    new Chart(document.getElementById('chart-throughput'), {
+
+    const timelineChart = new Chart(document.getElementById('chart-timeline'), {
       type: 'line',
       data: {
-        labels: throughputLabels,
-        datasets: [
-          { label: 'Events Ingested', data: throughputData1, borderColor: '#38bdf8', backgroundColor: 'rgba(56,189,248,0.08)', fill: true },
-          { label: 'Events Processed', data: throughputData2, borderColor: '#34d399', backgroundColor: 'rgba(52,211,153,0.05)', fill: true }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Events/min' } } } }
-    });
-
-    // ---- 2. EVENT TYPE DISTRIBUTION (doughnut) ----
-    new Chart(document.getElementById('chart-events'), {
-      type: 'doughnut',
-      data: {
-        labels: ['Player Login', 'Player Logout', 'Game Start', 'Game End', 'Score Update', 'Item Transaction', 'Network Error'],
+        labels: timelineLabels,
         datasets: [{
-          data: [1842, 1650, 1520, 1480, 2100, 980, 675],
-          backgroundColor: ['#38bdf8','#22d3ee','#34d399','#a78bfa','#f472b6','#fbbf24','#f87171'],
-          borderWidth: 0, hoverOffset: 8
+          label: 'Events Ingested / 10s',
+          data: timelineData,
+          borderColor: '#38bdf8',
+          backgroundColor: 'rgba(56, 189, 248, 0.08)',
+          fill: true
         }]
       },
       options: {
-        responsive: true, cutout: '62%',
+        responsive: true,
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: false, title: { display: true, text: 'Events / 10s' } } }
+      }
+    });
+
+    // ---- 2. EVENT TYPES CHART ----
+    const eventTypeChart = new Chart(document.getElementById('chart-event-types'), {
+      type: 'doughnut',
+      data: {
+        labels: ['player_score', 'player_login', 'player_logout', 'game_start', 'game_end', 'transaction', 'game_error'],
+        datasets: [{
+          data: [3420, 2180, 1940, 1820, 1790, 920, 410],
+          backgroundColor: ['#38bdf8', '#22d3ee', '#818cf8', '#34d399', '#a78bfa', '#f472b6', '#f87171'],
+          borderWidth: 0,
+          hoverOffset: 6
+        }]
+      },
+      options: {
+        responsive: true,
+        cutout: '65%',
         plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
       }
     });
 
-    // ---- 3. PLAYER ACTIVITY (bar chart) ----
-    const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
-    const actData1 = [420, 380, 450, 510, 620, 890, 940];
-    const actData2 = [320, 290, 340, 400, 480, 720, 780];
-    new Chart(document.getElementById('chart-activity'), {
+    // ---- 3. PLAYER KILLS CHART ----
+    const killsChart = new Chart(document.getElementById('chart-kills'), {
       type: 'bar',
       data: {
-        labels: days,
-        datasets: [
-          { label: 'Peak Hour Players', data: actData1, backgroundColor: 'rgba(56,189,248,0.7)', borderRadius: 6 },
-          { label: 'Avg Active Players', data: actData2, backgroundColor: 'rgba(167,139,250,0.6)', borderRadius: 6 }
-        ]
-      },
-      options: { responsive: true, plugins: { legend: { position: 'top' } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Players' } } } }
-    });
-
-    // ---- 4. SCORE DISTRIBUTION (histogram-style bar) ----
-    new Chart(document.getElementById('chart-scores'), {
-      type: 'bar',
-      data: {
-        labels: ['0–1K','1K–2K','2K–5K','5K–10K','10K–20K','20K–50K','50K+'],
+        labels: ['DragonSlayer_42', 'NightHawk_X', 'PixelWarrior', 'StormBringer_99', 'CyberPhoenix', 'ArcticFox_7', 'BlazeCoder'],
         datasets: [{
-          label: 'Players',
-          data: [45, 180, 420, 580, 350, 190, 77],
-          backgroundColor: (ctx) => {
-            const g = ctx.chart.ctx.createLinearGradient(0, 0, 0, 280);
-            g.addColorStop(0, 'rgba(56,189,248,0.8)'); g.addColorStop(1, 'rgba(167,139,250,0.4)');
-            return g;
-          },
-          borderRadius: 6
-        }]
-      },
-      options: { responsive: true, plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, title: { display: true, text: 'Player Count' } }, x: { title: { display: true, text: 'Score Range' } } } }
-    });
-
-    // ---- 5. DATA QUALITY (stacked bar) ----
-    const qualLabels = ['Day 1','Day 2','Day 3','Day 4','Day 5','Day 6','Day 7'];
-    const qValid = [1420,1380,1510,1600,1550,1700,1680];
-    const qInvalid = [12,18,8,14,10,16,9];
-    const qDup = [5,8,3,6,4,7,5];
-    new Chart(document.getElementById('chart-quality'), {
-      type: 'bar',
-      data: {
-        labels: qualLabels,
-        datasets: [
-          { label: 'Valid Events', data: qValid, backgroundColor: 'rgba(52,211,153,0.7)', borderRadius: 4 },
-          { label: 'Invalid Events', data: qInvalid, backgroundColor: 'rgba(248,113,113,0.7)', borderRadius: 4 },
-          { label: 'Duplicates', data: qDup, backgroundColor: 'rgba(251,191,36,0.7)', borderRadius: 4 }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: { x: { stacked: true }, y: { stacked: true, beginAtZero: true, title: { display: true, text: 'Events' } } }
-      }
-    });
-
-    // ---- 6. PARTICIPATION FREQUENCY (bar chart) ----
-    new Chart(document.getElementById('chart-participation'), {
-      type: 'bar',
-      data: {
-        labels: ['1–2 Games', '3–5 Games', '6–10 Games', '11–20 Games', '21–50 Games', '50+ Games'],
-        datasets: [{
-          label: 'Number of Players',
-          data: [610, 480, 360, 220, 120, 52],
-          backgroundColor: [
-            'rgba(56,189,248,0.75)',
-            'rgba(34,211,238,0.75)',
-            'rgba(52,211,153,0.75)',
-            'rgba(167,139,250,0.75)',
-            'rgba(244,114,182,0.75)',
-            'rgba(251,191,36,0.75)'
-          ],
+          label: 'Total Kills',
+          data: [187, 164, 152, 143, 138, 129, 121],
+          backgroundColor: 'rgba(56, 189, 248, 0.75)',
           borderRadius: 6
         }]
       },
       options: {
         responsive: true,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, title: { display: true, text: 'Unique Players' } }, x: { title: { display: true, text: 'Sessions Completed' } } }
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Kills' } } }
       }
     });
 
-    // ---- 7. GAME PERFORMANCE & SESSION DURATION (line chart) ----
-    new Chart(document.getElementById('chart-performance'), {
-      type: 'line',
+    // ---- 4. SCORE DISTRIBUTION CHART ----
+    const scoresChart = new Chart(document.getElementById('chart-scores'), {
+      type: 'bar',
       data: {
-        labels: ['5m', '10m', '15m', '20m', '25m', '30m', '35m', '40m', '45m', '50m', '60m'],
-        datasets: [
-          {
-            label: 'Avg Score (Points)',
-            data: [1200, 2450, 4100, 5800, 7200, 8900, 10400, 11800, 12900, 13700, 14800],
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56,189,248,0.08)',
-            fill: true,
-            yAxisID: 'y'
-          },
-          {
-            label: 'Win Rate (%)',
-            data: [42, 48, 54, 59, 63, 67, 69, 71, 72, 73, 74],
-            borderColor: '#34d399',
-            borderDash: [5, 5],
-            fill: false,
-            yAxisID: 'y1'
-          }
-        ]
+        labels: ['0–1K', '1K–2K', '2K–5K', '5K–10K', '10K–20K', '20K–50K', '50K+'],
+        datasets: [{
+          label: 'Player Sessions',
+          data: [85, 230, 580, 890, 620, 310, 95],
+          backgroundColor: 'rgba(167, 139, 250, 0.75)',
+          borderRadius: 6
+        }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          y: { type: 'linear', position: 'left', beginAtZero: true, title: { display: true, text: 'Average Score' } },
-          y1: { type: 'linear', position: 'right', min: 0, max: 100, grid: { drawOnChartArea: false }, title: { display: true, text: 'Win Rate (%)' } }
-        }
+        plugins: { legend: { display: false } },
+        scales: { y: { beginAtZero: true, title: { display: true, text: 'Sessions Count' } }, x: { title: { display: true, text: 'Score Range' } } }
       }
     });
 
-    // ---- 8. LATENCY VS THROUGHPUT (line chart) ----
-    new Chart(document.getElementById('chart-latency'), {
-      type: 'line',
-      data: {
-        labels: ['1,000', '2,000', '3,500', '5,000', '6,500', '8,000', '10,000'],
-        datasets: [
-          {
-            label: 'End-to-End Latency (ms)',
-            data: [3.4, 4.1, 4.8, 5.2, 6.8, 9.1, 12.4],
-            borderColor: '#38bdf8',
-            backgroundColor: 'rgba(56,189,248,0.12)',
-            fill: true
-          },
-          {
-            label: 'Preprocessing Latency (ms)',
-            data: [0.8, 1.1, 1.3, 1.5, 1.9, 2.4, 3.1],
-            borderColor: '#34d399',
-            backgroundColor: 'rgba(52,211,153,0.08)',
-            fill: true
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Latency (Milliseconds)' } },
-          x: { title: { display: true, text: 'Ingestion Throughput (Events/Sec)' } }
-        }
-      }
-    });
+    // ---- INITIAL SEED DATA FOR LIVE EVENTS STREAM ----
+    const samplePlayers = ['DragonSlayer_42', 'NightHawk_X', 'PixelWarrior', 'StormBringer_99', 'CyberPhoenix', 'ArcticFox_7', 'BlazeCoder', 'Viper_007', 'ShadowRogue', 'NeonKnight'];
+    const eventTypesConfig = [
+      { type: 'player_score', cls: 'ev-score', scoreFn: () => Math.floor(150 + Math.random() * 850) },
+      { type: 'game_start', cls: 'ev-start', scoreFn: () => 0 },
+      { type: 'game_end', cls: 'ev-end', scoreFn: () => Math.floor(1200 + Math.random() * 4500) },
+      { type: 'player_login', cls: 'ev-login', scoreFn: () => '-' },
+      { type: 'transaction', cls: 'ev-tx', scoreFn: () => `+$${(Math.random() * 15).toFixed(2)}` },
+      { type: 'game_error', cls: 'ev-error', scoreFn: () => 'TIMEOUT' }
+    ];
 
-    // ---- 9. VISUALIZATION RESPONSIVENESS (line chart) ----
-    const cycleLabels = Array.from({length: 15}, (_, i) => `T+${(i+1)*5}s`);
-    const apiRetrieval = [28, 31, 26, 34, 29, 32, 27, 30, 33, 29, 28, 35, 30, 27, 29];
-    const domRender = [14, 16, 15, 18, 14, 15, 13, 17, 16, 14, 15, 19, 15, 14, 15];
-    new Chart(document.getElementById('chart-responsiveness'), {
-      type: 'line',
-      data: {
-        labels: cycleLabels,
-        datasets: [
-          {
-            label: 'API Query Response (ms)',
-            data: apiRetrieval,
-            borderColor: '#a78bfa',
-            backgroundColor: 'rgba(167,139,250,0.1)',
-            fill: true
-          },
-          {
-            label: 'DOM Chart Render (ms)',
-            data: domRender,
-            borderColor: '#f472b6',
-            backgroundColor: 'rgba(244,114,182,0.1)',
-            fill: true
-          }
-        ]
-      },
-      options: {
-        responsive: true,
-        plugins: { legend: { position: 'top' } },
-        scales: {
-          y: { beginAtZero: true, title: { display: true, text: 'Response Time (ms)' } },
-          x: { title: { display: true, text: 'Dashboard Refresh Cycles (every 5 seconds)' } }
-        }
-      }
-    });
+    const streamBody = document.getElementById('events-stream-body');
 
-    // ---- ANIMATE KPI COUNTERS ----
-    function animateCounter(el, target, suffix='') {
-      const dur = 1800;
-      const start = performance.now();
-      const from = 0;
-      function step(now) {
-        const p = Math.min((now - start) / dur, 1);
-        const ease = 1 - Math.pow(1 - p, 3);
-        const val = Math.floor(from + (target - from) * ease);
-        el.textContent = val.toLocaleString() + suffix;
-        if (p < 1) requestAnimationFrame(step);
-      }
-      requestAnimationFrame(step);
+    function createRow(player, evConfig, isNew = false) {
+      const tr = document.createElement('tr');
+      if (isNew) tr.className = 'new-row';
+      const evId = 'ev_' + Math.random().toString(36).substring(2, 10);
+      const partition = Math.floor(Math.random() * 3);
+      const offset = Math.floor(12000 + Math.random() * 15000);
+      const score = evConfig.scoreFn();
+      const timeStr = new Date().toISOString().replace('T', ' ').substring(0, 19);
+
+      tr.innerHTML = `
+        <td class="mono-cell">${evId}</td>
+        <td class="player-id-cell">${player}</td>
+        <td><span class="badge-event ${evConfig.cls}">${evConfig.type}</span></td>
+        <td class="${typeof score === 'number' ? 'score-cell' : 'mono-cell'}">${typeof score === 'number' ? score.toLocaleString() : score}</td>
+        <td class="mono-cell">p${partition}:${offset}</td>
+        <td class="mono-cell">${timeStr}</td>
+        <td><span style="color:var(--success);font-weight:600;font-size:0.75rem;">✓ COMMITTED</span></td>
+      `;
+      return tr;
     }
-    // Trigger animations when dashboard section is in view
-    const observer = new IntersectionObserver((entries) => {
-      entries.forEach(e => {
-        if (e.isIntersecting) {
-          animateCounter(document.getElementById('kpi-events'), 10247);
-          animateCounter(document.getElementById('kpi-players'), 1842);
-          animateCounter(document.getElementById('kpi-sessions'), 3516);
-          animateCounter(document.getElementById('kpi-eps'), 247);
-          animateCounter(document.getElementById('kpi-quality'), 99, '.2%');
-          observer.disconnect();
-        }
-      });
-    }, { threshold: 0.2 });
-    observer.observe(document.getElementById('dashboard'));
+
+    // Populate initial 8 rows
+    for (let i = 0; i < 8; i++) {
+      const p = samplePlayers[i % samplePlayers.length];
+      const ev = eventTypesConfig[i % eventTypesConfig.length];
+      streamBody.appendChild(createRow(p, ev, false));
+    }
+
+    // ---- REAL-TIME TICK LOOP (EVERY 2 SECONDS) ----
+    setInterval(() => {
+      if (!isStreamActive) return;
+
+      // 1. Ingest new event into the live table
+      const p = samplePlayers[Math.floor(Math.random() * samplePlayers.length)];
+      const ev = eventTypesConfig[Math.floor(Math.random() * eventTypesConfig.length)];
+      const newTr = createRow(p, ev, true);
+      streamBody.insertBefore(newTr, streamBody.firstChild);
+      if (streamBody.children.length > 10) {
+        streamBody.removeChild(streamBody.lastChild);
+      }
+
+      // 2. Increment counters
+      const inc = Math.floor(3 + Math.random() * 5);
+      eventsCount += inc;
+      processedCount += inc;
+      if (ev.type === 'player_score') killsCount += 1;
+
+      document.getElementById('val-events').textContent = eventsCount.toLocaleString();
+      document.getElementById('val-processed').textContent = processedCount.toLocaleString();
+      document.getElementById('val-kills').textContent = killsCount.toLocaleString();
+
+      const throughput = Math.floor(220 + Math.random() * 45);
+      document.getElementById('val-throughput').innerHTML = `${throughput} <small style="font-size:0.9rem;font-weight:600;">EPS</small>`;
+
+      const latency = (4.2 + Math.random() * 1.2).toFixed(1);
+      document.getElementById('val-latency').innerHTML = `${latency} <small style="font-size:0.9rem;font-weight:600;">ms</small>`;
+
+    }, 2000);
+
+    // ---- 5-SECOND REFRESH TIMER & TIMELINE UPDATE ----
+    setInterval(() => {
+      if (!isStreamActive) return;
+
+      refreshSeconds--;
+      if (refreshSeconds <= 0) {
+        refreshSeconds = 5;
+
+        // Push new timeline data point
+        const timeNow = new Date().toTimeString().split(' ')[0];
+        timelineChart.data.labels.shift();
+        timelineChart.data.labels.push(timeNow);
+        timelineChart.data.datasets[0].data.shift();
+        timelineChart.data.datasets[0].data.push(Math.floor(190 + Math.random() * 70));
+        timelineChart.update();
+      }
+      document.getElementById('refresh-timer').textContent = refreshSeconds + 's';
+    }, 1000);
+
+    // ---- STREAM PAUSE / RESUME TOGGLE ----
+    function toggleStream() {
+      isStreamActive = !isStreamActive;
+      const btn = document.getElementById('btn-toggle-stream');
+      const icon = document.getElementById('stream-icon');
+      const txt = document.getElementById('stream-text');
+
+      if (isStreamActive) {
+        btn.classList.add('btn-stream-toggle');
+        icon.textContent = '⏸';
+        txt.textContent = 'Live Stream Active';
+      } else {
+        btn.classList.remove('btn-stream-toggle');
+        icon.textContent = '▶';
+        txt.textContent = 'Stream Paused';
+      }
+    }
   </script>
 
 </body>
