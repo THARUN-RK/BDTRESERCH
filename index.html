@@ -287,9 +287,16 @@
       color: var(--text-muted);
       font-family: var(--font-mono);
     }
-    .chart-box canvas {
+    .chart-canvas-wrap {
+      position: relative;
+      height: 250px;
+      width: 100%;
+      flex: 1;
+    }
+    .chart-canvas-wrap canvas {
+      display: block;
       width: 100% !important;
-      max-height: 260px;
+      height: 100% !important;
     }
 
     /* ============================================================
@@ -515,7 +522,9 @@
           <h3>📈 Gaming Activity Timeline (Events / 10s Window)</h3>
           <span>LIVE KAFKA METRICS</span>
         </div>
-        <canvas id="chart-timeline"></canvas>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-timeline"></canvas>
+        </div>
       </div>
 
       <div class="chart-box">
@@ -523,7 +532,9 @@
           <h3>🎯 Event Type Distribution</h3>
           <span>8 TELEMETRY TOPICS</span>
         </div>
-        <canvas id="chart-event-types"></canvas>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-event-types"></canvas>
+        </div>
       </div>
     </div>
 
@@ -534,7 +545,9 @@
           <h3>⚔️ Player Kill Statistics (Top Combatants)</h3>
           <span>AGGREGATED MATCH STATS</span>
         </div>
-        <canvas id="chart-kills"></canvas>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-kills"></canvas>
+        </div>
       </div>
 
       <div class="chart-box">
@@ -542,7 +555,9 @@
           <h3>🏆 Gaming Score Distribution</h3>
           <span>SESSION SCORE SPREAD</span>
         </div>
-        <canvas id="chart-scores"></canvas>
+        <div class="chart-canvas-wrap">
+          <canvas id="chart-scores"></canvas>
+        </div>
       </div>
     </div>
 
@@ -720,8 +735,12 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: false, title: { display: true, text: 'Events / 10s' } } }
+        scales: {
+          y: { beginAtZero: false, title: { display: true, text: 'Events / 10s' } },
+          x: { grid: { display: false } }
+        }
       }
     });
 
@@ -739,46 +758,99 @@
       },
       options: {
         responsive: true,
+        maintainAspectRatio: false,
         cutout: '65%',
         plugins: { legend: { position: 'right', labels: { font: { size: 11 } } } }
       }
     });
 
     // ---- 3. PLAYER KILLS CHART ----
+    const killsLabels = ['DragonSlayer_42', 'NightHawk_X', 'PixelWarrior', 'StormBringer_99', 'CyberPhoenix', 'ArcticFox_7', 'BlazeCoder'];
+    const killsData = [187, 164, 152, 143, 138, 129, 121];
+
     const killsChart = new Chart(document.getElementById('chart-kills'), {
       type: 'bar',
       data: {
-        labels: ['DragonSlayer_42', 'NightHawk_X', 'PixelWarrior', 'StormBringer_99', 'CyberPhoenix', 'ArcticFox_7', 'BlazeCoder'],
+        labels: killsLabels,
         datasets: [{
           label: 'Total Kills',
-          data: [187, 164, 152, 143, 138, 129, 121],
-          backgroundColor: 'rgba(56, 189, 248, 0.75)',
+          data: killsData,
+          backgroundColor: [
+            'rgba(56, 189, 248, 0.85)',
+            'rgba(34, 211, 238, 0.85)',
+            'rgba(52, 211, 153, 0.85)',
+            'rgba(167, 139, 250, 0.85)',
+            'rgba(244, 114, 182, 0.85)',
+            'rgba(251, 191, 36, 0.85)',
+            'rgba(248, 113, 113, 0.85)'
+          ],
           borderRadius: 6
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, title: { display: true, text: 'Kills' } } }
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.raw} confirmed kills`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Kills' },
+            grid: { color: 'rgba(31, 49, 82, 0.35)' }
+          },
+          x: {
+            grid: { display: false },
+            ticks: { font: { size: 10 } }
+          }
+        }
       }
     });
 
     // ---- 4. SCORE DISTRIBUTION CHART ----
+    const scoresLabels = ['0–1K', '1K–2K', '2K–5K', '5K–10K', '10K–20K', '20K–50K', '50K+'];
+    const scoresData = [85, 230, 580, 890, 620, 310, 95];
+
     const scoresChart = new Chart(document.getElementById('chart-scores'), {
       type: 'bar',
       data: {
-        labels: ['0–1K', '1K–2K', '2K–5K', '5K–10K', '10K–20K', '20K–50K', '50K+'],
+        labels: scoresLabels,
         datasets: [{
           label: 'Player Sessions',
-          data: [85, 230, 580, 890, 620, 310, 95],
-          backgroundColor: 'rgba(167, 139, 250, 0.75)',
+          data: scoresData,
+          backgroundColor: 'rgba(167, 139, 250, 0.8)',
+          hoverBackgroundColor: 'rgba(56, 189, 248, 0.95)',
           borderRadius: 6
         }]
       },
       options: {
         responsive: true,
-        plugins: { legend: { display: false } },
-        scales: { y: { beginAtZero: true, title: { display: true, text: 'Sessions Count' } }, x: { title: { display: true, text: 'Score Range' } } }
+        maintainAspectRatio: false,
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            callbacks: {
+              label: (ctx) => ` ${ctx.raw} sessions in bracket`
+            }
+          }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: 'Sessions Count' },
+            grid: { color: 'rgba(31, 49, 82, 0.35)' }
+          },
+          x: {
+            title: { display: true, text: 'Score Range' },
+            grid: { display: false },
+            ticks: { font: { size: 11 } }
+          }
+        }
       }
     });
 
@@ -813,14 +885,15 @@
         <td class="mono-cell">${timeStr}</td>
         <td><span style="color:var(--success);font-weight:600;font-size:0.75rem;">✓ COMMITTED</span></td>
       `;
-      return tr;
+      return { tr, score };
     }
 
     // Populate initial 8 rows
     for (let i = 0; i < 8; i++) {
       const p = samplePlayers[i % samplePlayers.length];
       const ev = eventTypesConfig[i % eventTypesConfig.length];
-      streamBody.appendChild(createRow(p, ev, false));
+      const { tr } = createRow(p, ev, false);
+      streamBody.appendChild(tr);
     }
 
     // ---- REAL-TIME TICK LOOP (EVERY 2 SECONDS) ----
@@ -830,8 +903,8 @@
       // 1. Ingest new event into the live table
       const p = samplePlayers[Math.floor(Math.random() * samplePlayers.length)];
       const ev = eventTypesConfig[Math.floor(Math.random() * eventTypesConfig.length)];
-      const newTr = createRow(p, ev, true);
-      streamBody.insertBefore(newTr, streamBody.firstChild);
+      const { tr, score } = createRow(p, ev, true);
+      streamBody.insertBefore(tr, streamBody.firstChild);
       if (streamBody.children.length > 10) {
         streamBody.removeChild(streamBody.lastChild);
       }
@@ -840,7 +913,38 @@
       const inc = Math.floor(3 + Math.random() * 5);
       eventsCount += inc;
       processedCount += inc;
-      if (ev.type === 'player_score') killsCount += 1;
+
+      // 3. Live update Player Kills Chart & Score Distribution Chart
+      if (ev.type === 'player_score' || ev.type === 'game_end') {
+        killsCount += 1;
+        const pIndex = killsLabels.indexOf(p);
+        if (pIndex !== -1) {
+          killsChart.data.datasets[0].data[pIndex] += 1;
+          killsChart.update('none'); // Instant smooth chart refresh
+        }
+
+        // Update Score Distribution Chart
+        if (typeof score === 'number' && score > 0) {
+          let bIdx = 0;
+          if (score > 50000) bIdx = 6;
+          else if (score > 20000) bIdx = 5;
+          else if (score > 10000) bIdx = 4;
+          else if (score > 5000) bIdx = 3;
+          else if (score > 2000) bIdx = 2;
+          else if (score > 1000) bIdx = 1;
+          else bIdx = 0;
+
+          scoresChart.data.datasets[0].data[bIdx] += 1;
+          scoresChart.update('none'); // Instant smooth chart refresh
+        }
+      }
+
+      // 4. Live update Event Type Distribution Doughnut
+      const evIdx = eventTypeChart.data.labels.indexOf(ev.type);
+      if (evIdx !== -1) {
+        eventTypeChart.data.datasets[0].data[evIdx] += 1;
+        eventTypeChart.update('none');
+      }
 
       document.getElementById('val-events').textContent = eventsCount.toLocaleString();
       document.getElementById('val-processed').textContent = processedCount.toLocaleString();
