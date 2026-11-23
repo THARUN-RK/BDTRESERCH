@@ -1,6 +1,22 @@
 # Large-Scale Online Gaming Data Processing and Data Visualization Dashboard Using Apache Kafka
 
-A resource-conscious research project for streaming simulated gaming events, processing them, storing results, and presenting analytics.
+> **Live Dashboard & Research Site:** [https://tharun-rk.github.io/BDTRESERCH/](https://tharun-rk.github.io/BDTRESERCH/)
+
+---
+
+## 📄 Abstract
+
+**Abstract—** In the last few years, online gaming platforms have been booming, resulting in a massive increase in data generated from player actions, events, scores, transactions, and interactions with the system. Traditional approaches to handling and analysing such high volume and high speed data can be a challenge, especially if real-time monitoring and visualization is needed. Previous works exist regarding the use of Apache Kafka for collecting and reporting real-time game data, preprocessing and streaming and visualization of high volume of data. An integrated approach that is able to effectively process and visualise online game data, which encompasses all these stages, is still needed. To address this, in this proposed research we are developing a big data online game data preprocessing and visualization system based on Apache Kafka. The proposed system will employ Kafka to continuously ingest the gaming events and organize the data being ingested from the various topics in the streaming app. Data preprocessing will be done before analyzing data which includes data cleaning, data validation, elimination of data repetitions, missing data, filtering, and data transformation. Data will then be consolidated then displayed on a real-time visualization dashboard. The dashboard will also offer valuable data on the player's activity, game performance, scores, game sessions, how often they participate in games and other relevant gaming metrics. The goal of this system is to create an end-to-end pipeline starting from large scale game-data collection, preprocessing and visualization. This is to facilitate the effective processing of data streams and provide real-time monitoring of gaming activities. The proposed system will be analyzed based on the data-processing latency, throughput, efficiency of pre-processing, and responsiveness of the visualization. This will likely result in a scalable and efficient solution that will convert raw online gaming data into valuable visual data for real-time analysis and decision-making.
+
+**Keywords:** `Big Data Technologies`, `Apache Kafka`, `Real-Time Streaming`, `Data Preprocessing`, `Data Deduplication`, `FastAPI`, `Streamlit Dashboard`, `Online Gaming Telemetry`.
+
+### 🎯 Research Evaluation Metrics
+1. **Data-Processing Latency:** End-to-end millisecond processing latency from event generation to persistence in SQLite / Neon PostgreSQL.
+2. **System Throughput:** High-speed event ingestion rate across partitioned Kafka topics.
+3. **Pre-Processing Efficiency:** Validation, schema enforcement, deduplication accuracy, and DLQ routing.
+4. **Visualization Responsiveness:** Real-time rendering latency and 5-second interval refresh responsiveness.
+
+---
 
 ## Project status
 
